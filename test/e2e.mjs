@@ -72,5 +72,14 @@ const wall = await ctx.newPage(); await wall.route("**/wall", (r) => r.fulfill({
 await wall.goto(url + "wall"); await wall.waitForTimeout(600);
 ok("écran de blocage sur une page GTA VI", await wall.evaluate(() => !!document.getElementById("asv-wall")));
 await wall.screenshot({ path: path.join(shots, "wall.png") });
+// Sur x.com : le nom, le @ et "a reposté" ne comptent pas, seul le contenu du tweet compte.
+const xp = await ctx.newPage(); await xp.route("https://x.com/**", (r) => r.fulfill({ contentType: "text/html; charset=utf-8", body: fs.readFileSync(path.join(root, "test", "fake-x.html")) }));
+await xp.goto("https://x.com/home"); await xp.waitForTimeout(800);
+const xs = (id) => xp.evaluate((id) => document.getElementById(id).getAttribute("data-asv"), id);
+ok("x.com : retweet d'un compte nommé GTA 6, sujet sans rapport : pas masqué", !(await xs("p5")), String(await xs("p5")));
+ok("x.com : auteur nommé GTA VI, sujet sans rapport : pas masqué", !(await xs("p6")), String(await xs("p6")));
+ok("x.com : tweet qui parle de GTA 6 : masqué", (await xs("p1")) === "mask", String(await xs("p1")));
+await xp.evaluate(() => { document.querySelector("#p5 .t a").textContent = "Le trailer de GTA 6 est sorti"; }); await xp.waitForTimeout(100);
+ok("x.com : même retweet, contenu GTA : masqué", (await xs("p5")) === "mask", String(await xs("p5")));
 console.log(results.join("\n")); console.log("shots: " + shots);
 await ctx.close(); srv.close(); process.exit(results.some((r) => r.startsWith("FAIL")) ? 1 : 0);

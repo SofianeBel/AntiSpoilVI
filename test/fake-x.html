@@ -11,11 +11,13 @@ var posts=[["Marie","/marie/status/1","Café et code ce matin, rien de spécial.
 ["Leak Hub","/leak/status/2","Nouveau trailer GTA 6 : Lucia et Jason arrivent à Vice City, regardez la fin"],
 ["Tom","/tom/status/3","Quelqu'un a des recos de jeux coop ?"],
 ["Gaming FR","/gfr/status/4","Le prix de Grand Theft Auto VI aurait fuité"],
-["Tendance","/search?q=gta6","#GTA6"]];
+["Tendance","/search?q=gta6","#GTA6"],
+["Chat Mignon","/chat/status/5","Mon chat dort sur le clavier depuis une heure","GTA 6 Countdown"],
+["GTA VI Leaks","/gta6leaks/status/6","Bon appétit à tous, pizza ce soir"]];
 if(location.search.includes('light'))document.body.className='light';
 var feed=document.getElementById('feed');
 posts.forEach(function(p,i){var a=document.createElement('article');a.className='css-1';a.id='p'+i;
-a.innerHTML='<a href="/'+p[0]+'">'+p[0]+'</a> <span class="n">@'+p[0].toLowerCase().replace(/ /g,'')+'</span><div class="t"><a href="'+p[1]+'">'+p[2]+'</a></div>'+(i%2?'<div class="img"></div>':'')+'<div class="n">vues <span class="v">'+(100*i)+'</span></div>';
+a.innerHTML=(p[3]?'<div class="n" data-testid="socialContext">'+p[3]+' a reposté</div>':'')+'<div data-testid="User-Name"><a href="/'+p[0]+'">'+p[0]+'</a> <span class="n">@'+p[0].toLowerCase().replace(/ /g,'')+'</span></div><div class="t"><a href="'+p[1]+'">'+p[2]+'</a></div>'+(i%2?'<div class="img"></div>':'')+'<div class="n">vues <span class="v">'+(100*i)+'</span></div>';
 // imite React : className réécrit au survol
 a.addEventListener('pointerenter',function(){a.dataset.h='1';render(a)});
 a.addEventListener('pointerleave',function(){delete a.dataset.h;render(a)});

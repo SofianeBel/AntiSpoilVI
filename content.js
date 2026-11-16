@@ -5,7 +5,9 @@
   // Conteneurs à masquer par site. Ailleurs : les <article>.
   var SITES = [
     { re: /(^|\.)youtube\.com$/, sel: "ytd-rich-item-renderer,ytd-video-renderer,ytd-compact-video-renderer,ytd-grid-video-renderer,ytd-reel-item-renderer,ytd-playlist-renderer,ytd-channel-renderer,ytd-comment-thread-renderer,ytd-post-renderer,ytd-notification-renderer,yt-lockup-view-model,ytm-shorts-lockup-view-model,ytd-universal-watch-card-renderer,ytd-search-refinement-card-renderer,yt-page-header-view-model,yt-page-header-renderer,ytd-c4-tabbed-header-renderer", page: /^\/(watch|shorts\/)/ },
-    { re: /(^|\.)(x|twitter)\.com$/, sel: "article,[data-testid=trend],[data-testid=UserCell],[data-testid=typeaheadResult]", page: /\/status\// },
+    // skip : zones lues nulle part. Le nom, le @ et "a reposté" d'un compte "GTA 6 News" masquaient tout ce qu'il retweete.
+    { re: /(^|\.)(x|twitter)\.com$/, sel: "article,[data-testid=trend],[data-testid=UserCell],[data-testid=typeaheadResult]", page: /\/status\//,
+      skip: "article [data-testid=User-Name],article [data-testid=socialContext],article [data-testid=Tweet-User-Avatar]" },
     { re: /(^|\.)reddit\.com$/, sel: "shreddit-post,shreddit-comment,article,[data-testid=post-container],faceplate-tracker[noun=trending_search],reddit-recent-pages li", page: /\/comments\// },
     { re: /(^|\.)discord\.com$/, sel: "li[id^=chat-messages-],[data-list-item-id^=channels___],[data-list-item-id^=guildsnav___],[class*=threadSidebar] li,[class*=searchResult]", page: null },
     { re: /(^|\.)tiktok\.com$/, sel: "[data-e2e=recommend-list-item-container],[data-e2e=search_top-item],[data-e2e=search_video-item],[data-e2e=comment-level-1],[data-e2e=user-post-item],article", page: /\/video\// },
@@ -15,6 +17,7 @@
   ];
   var site = SITES.filter(function (s) { return s.re.test(host); })[0];
   var SEL = site ? site.sel : "article";
+  var SKIP = site && site.skip || null;
 
   var settings = null, rx = null, active = false;
   var seen = new WeakMap();      // élément -> texte déjà analysé
@@ -38,14 +41,21 @@
   // Nœuds texte séparés par un espace : textContent colle les blocs ("#GTA6" + "vues" = "#GTA6vues")
   // et la borne de mot ratait. On garde aussi la version collée pour "GT<b>A 6</b>".
   function textOf(el) {
+    var skip = SKIP ? [].slice.call(el.querySelectorAll(SKIP)) : [];
     var w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), parts = [], n;
-    while ((n = w.nextNode())) parts.push(n.nodeValue);
+    while ((n = w.nextNode())) if (!inSkip(skip, n)) parts.push(n.nodeValue);
     var t = parts.join(" ") + "\n" + parts.join("");
     var extra = el.querySelectorAll("img[alt],[aria-label],[title]");
     for (var i = 0; i < extra.length && i < 40; i++) {
+      if (inSkip(skip, extra[i])) continue;
       t += " " + (extra[i].getAttribute("alt") || "") + " " + (extra[i].getAttribute("aria-label") || "") + " " + (extra[i].getAttribute("title") || "");
     }
     return t;
+  }
+
+  function inSkip(skip, n) {
+    for (var i = 0; i < skip.length; i++) if (skip[i].contains(n)) return true;
+    return false;
   }
 
   // Identité stable d'une carte : son premier lien. Le survol change le texte, pas le lien ;
