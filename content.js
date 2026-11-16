@@ -21,7 +21,9 @@
   var revealed = new WeakMap();  // élément -> identité (lien) affichée volontairement
   var pending = new Set(), scheduled = false, fullScan = false;
   var masked = 0, wallOpenFor = null, wallDismissed = null;
-  var maskedEls = new Set();     // blocs masqués, pour remettre le masque si le site l'enlève
+  var maskedEls = new WeakSet(); // blocs masqués (WeakSet : une carte retirée du fil est libérée)
+  var maskedId = new WeakMap();  // bloc masqué -> identité au moment du masque
+  var lost = new Set();          // blocs masqués dont un site a retiré l'attribut
   var peekTimer = null, peekEl = null;
   var PEEK_DELAY = 350;
   var toSize = [];               // blocs fraîchement masqués dont on mesure la hauteur en une passe          // un passage de souris en scrollant ne doit pas spoiler
@@ -54,8 +56,11 @@
   }
 
   // Attribut et pas classe : React (X, Reddit) réécrit className au survol et effaçait le masque.
-  function mask(el) {
+  function mask(el, id) {
     if (!maskedEls.has(el)) { maskedEls.add(el); masked++; if (settings.mode === "mask") toSize.push(el); }
+    else if (maskedId.get(el) !== id && el === peekEl) endPeek(); // carte recyclée pendant un aperçu
+    maskedId.set(el, id);
+    if (!el.hasAttribute("tabindex")) { el.setAttribute("tabindex", "0"); el.setAttribute("data-asv-tab", ""); }
     if (el.getAttribute("data-asv") !== settings.mode) el.setAttribute("data-asv", settings.mode);
   }
   function unmask(el) {
@@ -64,6 +69,7 @@
     if (el.hasAttribute("data-asv")) el.removeAttribute("data-asv");
     el.removeAttribute("data-asv-peek");
     el.removeAttribute("data-asv-size");
+    if (el.hasAttribute("data-asv-tab")) { el.removeAttribute("tabindex"); el.removeAttribute("data-asv-tab"); }
   }
 
   function check(el) {
@@ -71,16 +77,17 @@
     var t = textOf(el);
     if (seen.get(el) === t) return;
     seen.set(el, t);
-    if (rx.test(t) && revealed.get(el) !== identity(el)) mask(el);
+    var id = rx.test(t) ? identity(el) : null;
+    if (id !== null && revealed.get(el) !== id) mask(el, id);
     else unmask(el); // YouTube et X recyclent leurs cartes : on démasque si le contenu a changé.
   }
 
   // Filet de sécurité : un bloc masqué qui a perdu son attribut le retrouve avant le rendu.
   function enforce() {
-    maskedEls.forEach(function (el) {
-      if (!el.isConnected) { maskedEls.delete(el); return; }
-      if (el.getAttribute("data-asv") !== settings.mode) el.setAttribute("data-asv", settings.mode);
+    lost.forEach(function (el) {
+      if (el.isConnected && maskedEls.has(el) && el.getAttribute("data-asv") !== settings.mode) el.setAttribute("data-asv", settings.mode);
     });
+    lost.clear();
   }
 
   function checkPage() {
@@ -116,7 +123,7 @@
     enforce();
     if (toSize.length) {
       var hs = toSize.map(function (el) { return el.offsetHeight; });
-      toSize.forEach(function (el, i) { el.setAttribute("data-asv-size", hs[i] < 110 ? "s" : "l"); });
+      toSize.forEach(function (el, i) { el.setAttribute("data-asv-size", hs[i] < 170 ? "s" : "l"); });
       toSize = [];
     }
     checkPage();
@@ -139,7 +146,7 @@
     for (var i = 0; i < list.length; i++) {
       var m = list[i];
       if (m.type === "childList") { m.addedNodes.forEach(collect); if (m.target.nodeType === 1) collect(m.target); }
-      else if (m.attributeName === "data-asv") { /* enforce() remet le masque au prochain flush */ }
+      else if (m.attributeName === "data-asv") { if (maskedEls.has(m.target)) lost.add(m.target); }
       else collect(m.target);
     }
     schedule();
@@ -163,11 +170,13 @@
     wallOpenFor = key;
     var w = document.createElement("div");
     w.id = "asv-wall";
+    w.setAttribute("role", "dialog"); w.setAttribute("aria-modal", "true"); w.setAttribute("aria-label", "Page bloquée par Anti-Spoil VI");
     w.innerHTML = '<div class="asv-box"><h1>Cette page parle de GTA VI</h1><p>Anti-Spoil VI l\'a cachée pour que tu restes vierge jusqu\'à la sortie.</p><button class="asv-back">Retour</button><button class="asv-go">Afficher quand même</button></div>';
     w.querySelector(".asv-back").onclick = function () { if (history.length > 1) history.back(); else location.href = "about:blank"; };
     w.querySelector(".asv-go").onclick = function () { wallDismissed = key; closeWall(); };
     (document.body || document.documentElement).appendChild(w);
     document.querySelectorAll("video,audio").forEach(function (v) { try { v.pause(); } catch (x) {} });
+    w.querySelector(".asv-back").focus();
   }
   function closeWall() {
     wallOpenFor = null;
@@ -195,8 +204,9 @@
   window.addEventListener("blur", endPeek);
   window.addEventListener("scroll", function () { if (peekEl && !peekEl.matches(":hover")) endPeek(); }, { passive: true, capture: true });
 
-  // Un clic sur un bloc masqué l'affiche pour de bon (et ne suit pas le lien).
-  document.addEventListener("click", function (e) {
+  // Un clic (ou Entrée/Espace au clavier) sur un bloc masqué l'affiche pour de bon, sans suivre le lien.
+  function onReveal(e) {
+    if (e.type === "keydown" && (e.key !== "Enter" && e.key !== " " || e.target.getAttribute("data-asv") !== "mask")) return;
     var el = maskedFrom(e.target);
     if (!el) return;
     e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
@@ -204,7 +214,9 @@
     var list = [el].concat([].slice.call(el.querySelectorAll("[data-asv=mask]")));
     for (var p = el.parentElement; p; p = p.parentElement) if (p.getAttribute("data-asv") === "mask") list.push(p);
     list.forEach(function (x) { revealed.set(x, identity(x)); unmask(x); });
-  }, true);
+  }
+  document.addEventListener("click", onReveal, true);
+  document.addEventListener("keydown", onReveal, true);
   document.addEventListener("play", pauseMedia, true);
 
   function apply(s) {
@@ -214,7 +226,7 @@
     active = isActive(settings);
     seen = new WeakMap();
     endPeek();
-    maskedEls.forEach(unmask);
+    lost.clear();
     document.querySelectorAll("[data-asv]").forEach(unmask);
     if (!active) { closeWall(); if (was) mo.disconnect(); return; }
     if (!was) mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["title", "aria-label", "alt", "data-asv"], attributeOldValue: false });

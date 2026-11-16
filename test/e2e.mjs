@@ -34,6 +34,16 @@ ok("aucun clignotement sur 3 s de re-render", gaps.bad === 0, gaps.bad + "/" + g
 // Survols rapides en série (passage en scrollant) : jamais d'aperçu.
 for (let i = 0; i < 6; i++) { await page.mouse.move(box.x + 40, box.y + 20 + i * 10); await page.waitForTimeout(40); await page.mouse.move(5, 5); await page.waitForTimeout(40); }
 s = await state("p1"); ok("passages rapides : pas d'aperçu", !s.textVisible && !s.peek);
+// Carte recyclée pendant un aperçu : le nouveau post ne doit pas hériter de l'aperçu.
+await page.mouse.move(box.x + 40, box.y + box.height / 2); await page.waitForTimeout(500);
+await page.evaluate(() => { const a = document.querySelector("#p1"); a.querySelector(".t a").href = "/x/status/99"; a.querySelector(".t a").textContent = "Autre fuite GTA 6 sur Leonida"; });
+await page.waitForTimeout(60);
+s = await state("p1"); ok("carte recyclée pendant l'aperçu : remasquée", s.asv === "mask" && !s.textVisible, JSON.stringify(s));
+// Un site qui arrache l'attribut : remis avant la frame suivante.
+await page.mouse.move(5, 5);
+const torn = await page.evaluate(() => new Promise((r) => { const a = document.querySelector("#p3"); a.removeAttribute("data-asv");
+  requestAnimationFrame(() => requestAnimationFrame(() => r(a.getAttribute("data-asv")))); }));
+ok("attribut arraché : remis aussitôt", torn === "mask", String(torn));
 await page.mouse.click(box.x + 40, box.y + box.height / 2); await page.waitForTimeout(100);
 await page.mouse.move(5, 5); await page.waitForTimeout(400);
 s = await state("p1"); ok("clic : affiché pour de bon", !s.asv && s.textVisible, JSON.stringify(s));
@@ -41,6 +51,8 @@ ok("url inchangée après le clic (lien pas suivi)", page.url() === url, page.ur
 s = await state("p3"); ok("l'autre post reste masqué", s.asv === "mask" && !s.textVisible);
 s = await page.evaluate(() => document.getElementById("p4").getAttribute("data-asv-size"));
 ok("petit bloc en mode compact", s === "s", s);
+await page.focus("#p3"); await page.keyboard.press("Enter"); await page.waitForTimeout(100);
+s = await state("p3"); ok("Entrée au clavier : affiché", !s.asv && s.textVisible, JSON.stringify(s));
 ok("thème sombre détecté", (await page.evaluate(() => document.documentElement.getAttribute("data-asv-theme"))) === "dark");
 const light = await ctx.newPage(); await light.goto(url + "?light"); await light.waitForTimeout(1500);
 ok("thème clair détecté", (await light.evaluate(() => document.documentElement.getAttribute("data-asv-theme"))) === "light");
@@ -54,7 +66,7 @@ if (extId) { const pop = await ctx.newPage(); await pop.setViewportSize({ width:
   await page.bringToFront(); await page.waitForTimeout(800);
   ok("coupé depuis la popup : plus rien de masqué", (await page.evaluate(() => document.querySelectorAll("[data-asv]").length)) === 0);
   await pop.click(".sw"); await page.waitForTimeout(800);
-  ok("rallumé : re-masqué", (await page.evaluate(() => document.querySelectorAll("[data-asv=mask]").length)) >= 2); }
+  ok("rallumé : re-masqué", (await page.evaluate(() => document.querySelectorAll("[data-asv=mask]").length)) >= 1); }
 else ok("popup trouvée", false);
 const wall = await ctx.newPage(); await wall.route("**/wall", (r) => r.fulfill({ contentType: "text/html", body: "<title>GTA 6 : tout sur Vice City</title><h1>GTA 6 : tout sur Vice City</h1>" }));
 await wall.goto(url + "wall"); await wall.waitForTimeout(600);
