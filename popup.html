@@ -1,17 +1,27 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><link rel="stylesheet" href="popup.css"></head>
 <body>
-  <header><h1>Anti-Spoil VI</h1><label class="sw"><input type="checkbox" id="enabled"><span></span></label></header>
-  <p class="count"><b id="count">0</b> spoils masqués</p>
+  <header class="sign">
+    <svg class="sun" viewBox="0 0 120 52" aria-hidden="true">
+      <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7aa8"/><stop offset="1" stop-color="#ffb070"/></linearGradient>
+      <clipPath id="c"><path d="M14 52a46 46 0 0 1 92 0z"/></clipPath></defs>
+      <g clip-path="url(#c)"><rect width="120" height="52" fill="url(#g)"/><g fill="#f7e4c8"><rect y="30" width="120" height="3"/><rect y="38" width="120" height="4"/><rect y="46" width="120" height="5"/></g></g>
+      <g fill="#2f9e7e"><path d="M96 52c1-10 0-19-3-27" stroke="#2f9e7e" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M93 25c-5-5-13-6-19-2 7-1 12 1 16 5z"/><path d="M93 25c5-5 13-6 19-2-7-1-12 1-16 5z"/><path d="M93 25c-3-6-8-9-14-9 6 2 10 5 12 10z"/><path d="M93 25c3-6 8-9 14-9-6 2-10 5-12 10z"/></g>
+    </svg>
+    <h1>ANTI-SPOIL VI</h1>
+    <p class="tag">Pas de spoil, juste le soleil.</p>
+  </header>
+
+  <label class="row power"><span id="state">Protection activée</span><span class="sw"><input type="checkbox" id="enabled"><span></span></span></label>
+  <p class="count"><b id="count">0</b> <span id="countLabel">spoils masqués</span></p>
+
   <label class="row">Mode
-    <select id="mode"><option value="mask">Bloc masqué (clic pour voir)</option><option value="hide">Supprimer complètement</option></select>
+    <select id="mode"><option value="mask">Bloc masqué</option><option value="hide">Supprimer</option></select>
   </label>
-  <label class="row chk"><input type="checkbox" id="strict"> Bloquer aussi Rockstar / Take-Two</label>
-  <label class="row">Couper automatiquement le
-    <input type="date" id="until">
-  </label>
-  <label class="col">Mots-clés en plus (un par ligne)<textarea id="extra" rows="3" placeholder="Nom de perso, mission..."></textarea></label>
-  <label class="col">Sites jamais filtrés (un par ligne)<textarea id="allow" rows="2" placeholder="gta6hub.fr"></textarea></label>
-  <p class="note">Discord : marche sur discord.com dans le navigateur, pas dans l'appli Discord.</p>
+  <label class="row chk"><input type="checkbox" id="strict"><span>Filtrage strict<small>Bloque aussi Rockstar / Take-Two</small></span></label>
+  <label class="col">Couper automatiquement le<input type="date" id="until"></label>
+  <label class="col"><span>Mots-clés en plus <small>un par ligne</small></span><textarea id="extra" rows="2" placeholder="Nom de perso, mission..."></textarea></label>
+  <label class="col"><span>Sites jamais filtrés <small>un par ligne</small></span><textarea id="allow" rows="2" placeholder="gta6hub.fr"></textarea></label>
+  <footer><span>Discord : version web seulement</span><span id="saved" aria-live="polite"></span></footer>
   <script src="keywords.js"></script><script src="popup.js"></script>
 </body></html>

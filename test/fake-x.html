@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Accueil / X</title><style>
+body{margin:0;background:#000;color:#e7e9ea;font:15px/1.35 system-ui,sans-serif}
+body.light{background:#fff;color:#0f1419}
+main{width:600px;margin:0 auto;border-inline:1px solid #2f3336}
+article{display:block;padding:12px 16px;border-bottom:1px solid #2f3336}
+article.hover{background:#080808} .light article.hover{background:#f7f7f7}
+.n{color:#71767b}.t{margin:4px 0}
+.img{height:180px;border-radius:16px;background:#333;margin-top:8px}
+</style></head><body><main id="feed"></main><script>
+var posts=[["Marie","/marie/status/1","Café et code ce matin, rien de spécial."],
+["Leak Hub","/leak/status/2","Nouveau trailer GTA 6 : Lucia et Jason arrivent à Vice City, regardez la fin"],
+["Tom","/tom/status/3","Quelqu'un a des recos de jeux coop ?"],
+["Gaming FR","/gfr/status/4","Le prix de Grand Theft Auto VI aurait fuité"],
+["Tendance","/search?q=gta6","#GTA6"]];
+if(location.search.includes('light'))document.body.className='light';
+var feed=document.getElementById('feed');
+posts.forEach(function(p,i){var a=document.createElement('article');a.className='css-1';a.id='p'+i;
+a.innerHTML='<a href="/'+p[0]+'">'+p[0]+'</a> <span class="n">@'+p[0].toLowerCase().replace(/ /g,'')+'</span><div class="t"><a href="'+p[1]+'">'+p[2]+'</a></div>'+(i%2?'<div class="img"></div>':'')+'<div class="n">vues <span class="v">'+(100*i)+'</span></div>';
+// imite React : className réécrit au survol
+a.addEventListener('pointerenter',function(){a.dataset.h='1';render(a)});
+a.addEventListener('pointerleave',function(){delete a.dataset.h;render(a)});
+feed.appendChild(a);});
+// imite React : className recalculé depuis l'état à chaque rendu (efface toute classe ajoutée par une extension)
+function render(a){a.className=a.dataset.h?'css-1 hover':'css-1';}
+setInterval(function(){document.querySelectorAll('article').forEach(render);},120);
+setInterval(function(){document.querySelectorAll('.v').forEach(function(v){v.textContent=+v.textContent+1;});},1000);
+</script></body></html>

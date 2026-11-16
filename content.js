@@ -21,6 +21,10 @@
   var revealed = new WeakMap();  // élément -> identité (lien) affichée volontairement
   var pending = new Set(), scheduled = false, fullScan = false;
   var masked = 0, wallOpenFor = null, wallDismissed = null;
+  var maskedEls = new Set();     // blocs masqués, pour remettre le masque si le site l'enlève
+  var peekTimer = null, peekEl = null;
+  var PEEK_DELAY = 350;
+  var toSize = [];               // blocs fraîchement masqués dont on mesure la hauteur en une passe          // un passage de souris en scrollant ne doit pas spoiler
 
   function isActive(s) {
     if (!s.enabled) return false;
@@ -29,8 +33,12 @@
     return !allow.some(function (a) { return host === a || host.endsWith("." + a); });
   }
 
+  // Nœuds texte séparés par un espace : textContent colle les blocs ("#GTA6" + "vues" = "#GTA6vues")
+  // et la borne de mot ratait. On garde aussi la version collée pour "GT<b>A 6</b>".
   function textOf(el) {
-    var t = el.textContent || "";
+    var w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), parts = [], n;
+    while ((n = w.nextNode())) parts.push(n.nodeValue);
+    var t = parts.join(" ") + "\n" + parts.join("");
     var extra = el.querySelectorAll("img[alt],[aria-label],[title]");
     for (var i = 0; i < extra.length && i < 40; i++) {
       t += " " + (extra[i].getAttribute("alt") || "") + " " + (extra[i].getAttribute("aria-label") || "") + " " + (extra[i].getAttribute("title") || "");
@@ -41,24 +49,38 @@
   // Identité stable d'une carte : son premier lien. Le survol change le texte, pas le lien ;
   // le recyclage de cartes (YouTube, X) change le lien.
   function identity(el) {
-    var a = el.querySelector("a[href]");
+    var a = el.querySelector("a[href*='/status/'],a[href*='/watch'],a[href*='/shorts/'],a[href*='/comments/'],a[href*='/video/']") || el.querySelector("a[href]");
     return a ? a.getAttribute("href") : (el.textContent || "").slice(0, 300);
   }
 
-  function cls() { return settings.mode === "hide" ? "asv-hidden" : "asv-masked"; }
+  // Attribut et pas classe : React (X, Reddit) réécrit className au survol et effaçait le masque.
+  function mask(el) {
+    if (!maskedEls.has(el)) { maskedEls.add(el); masked++; if (settings.mode === "mask") toSize.push(el); }
+    if (el.getAttribute("data-asv") !== settings.mode) el.setAttribute("data-asv", settings.mode);
+  }
+  function unmask(el) {
+    maskedEls.delete(el);
+    if (el === peekEl) endPeek();
+    if (el.hasAttribute("data-asv")) el.removeAttribute("data-asv");
+    el.removeAttribute("data-asv-peek");
+    el.removeAttribute("data-asv-size");
+  }
 
   function check(el) {
     if (!el.isConnected) return;
     var t = textOf(el);
     if (seen.get(el) === t) return;
     seen.set(el, t);
-    var hit = rx.test(t);
-    if (hit && revealed.get(el) !== identity(el)) {
-      if (!el.classList.contains("asv-masked") && !el.classList.contains("asv-hidden")) { el.classList.add(cls()); masked++; }
-    } else {
-      // YouTube et X recyclent leurs cartes : on démasque si le contenu a changé.
-      el.classList.remove("asv-masked", "asv-hidden");
-    }
+    if (rx.test(t) && revealed.get(el) !== identity(el)) mask(el);
+    else unmask(el); // YouTube et X recyclent leurs cartes : on démasque si le contenu a changé.
+  }
+
+  // Filet de sécurité : un bloc masqué qui a perdu son attribut le retrouve avant le rendu.
+  function enforce() {
+    maskedEls.forEach(function (el) {
+      if (!el.isConnected) { maskedEls.delete(el); return; }
+      if (el.getAttribute("data-asv") !== settings.mode) el.setAttribute("data-asv", settings.mode);
+    });
   }
 
   function checkPage() {
@@ -69,6 +91,19 @@
     if (hit && wallDismissed !== key) openWall(key); else if (!hit) closeWall();
   }
 
+  // Thème de la page (clair/sombre) lu sur le fond réel, pour que le masque se fonde dans le site.
+  function theme() {
+    var bg = "", nodes = [document.body, document.documentElement];
+    for (var i = 0; i < nodes.length && !bg; i++) {
+      var c = nodes[i] && getComputedStyle(nodes[i]).backgroundColor;
+      if (c && !/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/.test(c)) bg = c;
+    }
+    var m = (bg || "rgb(255,255,255)").match(/\d+(\.\d+)?/g).map(Number);
+    var dark = (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) < 128;
+    var v = dark ? "dark" : "light";
+    if (document.documentElement.getAttribute("data-asv-theme") !== v) document.documentElement.setAttribute("data-asv-theme", v);
+  }
+
   function flush() {
     scheduled = false;
     if (!active) return;
@@ -77,6 +112,12 @@
       document.querySelectorAll(SEL).forEach(check);
     } else {
       pending.forEach(check); pending.clear();
+    }
+    enforce();
+    if (toSize.length) {
+      var hs = toSize.map(function (el) { return el.offsetHeight; });
+      toSize.forEach(function (el, i) { el.setAttribute("data-asv-size", hs[i] < 110 ? "s" : "l"); });
+      toSize = [];
     }
     checkPage();
     if (masked) { var n = masked; masked = 0; bump(n); }
@@ -98,6 +139,7 @@
     for (var i = 0; i < list.length; i++) {
       var m = list[i];
       if (m.type === "childList") { m.addedNodes.forEach(collect); if (m.target.nodeType === 1) collect(m.target); }
+      else if (m.attributeName === "data-asv") { /* enforce() remet le masque au prochain flush */ }
       else collect(m.target);
     }
     schedule();
@@ -121,7 +163,7 @@
     wallOpenFor = key;
     var w = document.createElement("div");
     w.id = "asv-wall";
-    w.innerHTML = '<div class="asv-box"><h1>Cette page parle de GTA VI</h1><p>Anti-Spoil VI l\'a bloquée pour éviter un spoil.</p><button class="asv-back">Retour</button><button class="asv-go">Afficher quand même</button></div>';
+    w.innerHTML = '<div class="asv-box"><h1>Cette page parle de GTA VI</h1><p>Anti-Spoil VI l\'a cachée pour que tu restes vierge jusqu\'à la sortie.</p><button class="asv-back">Retour</button><button class="asv-go">Afficher quand même</button></div>';
     w.querySelector(".asv-back").onclick = function () { if (history.length > 1) history.back(); else location.href = "about:blank"; };
     w.querySelector(".asv-go").onclick = function () { wallDismissed = key; closeWall(); };
     (document.body || document.documentElement).appendChild(w);
@@ -132,15 +174,36 @@
     var w = document.getElementById("asv-wall"); if (w) w.remove();
   }
 
-  // Un clic sur un bloc masqué l'affiche (et ne suit pas le lien).
+  // Survol : aperçu après un court délai, remasqué dès que la souris sort.
+  function endPeek() {
+    clearTimeout(peekTimer); peekTimer = null;
+    if (peekEl) { peekEl.removeAttribute("data-asv-peek"); peekEl = null; }
+  }
+  function maskedFrom(node) { return node && node.closest ? node.closest("[data-asv=mask]") : null; }
+  document.addEventListener("pointerover", function (e) {
+    if (e.pointerType === "touch") return;
+    var el = maskedFrom(e.target);
+    if (el === peekEl) return;
+    endPeek();
+    if (!el) return;
+    peekEl = el;
+    peekTimer = setTimeout(function () { if (peekEl === el) el.setAttribute("data-asv-peek", ""); }, PEEK_DELAY);
+  }, true);
+  document.addEventListener("pointerout", function (e) {
+    if (peekEl && !(e.relatedTarget && peekEl.contains(e.relatedTarget))) endPeek();
+  }, true);
+  window.addEventListener("blur", endPeek);
+  window.addEventListener("scroll", function () { if (peekEl && !peekEl.matches(":hover")) endPeek(); }, { passive: true, capture: true });
+
+  // Un clic sur un bloc masqué l'affiche pour de bon (et ne suit pas le lien).
   document.addEventListener("click", function (e) {
-    var el = e.target.closest && e.target.closest(".asv-masked");
+    var el = maskedFrom(e.target);
     if (!el) return;
     e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
     // On affiche le bloc cliqué, les blocs masqués dedans et ceux qui l'englobent.
-    var list = [el].concat([].slice.call(el.querySelectorAll(".asv-masked")));
-    for (var p = el.parentElement; p; p = p.parentElement) if (p.classList.contains("asv-masked")) list.push(p);
-    list.forEach(function (x) { revealed.set(x, identity(x)); x.classList.remove("asv-masked"); });
+    var list = [el].concat([].slice.call(el.querySelectorAll("[data-asv=mask]")));
+    for (var p = el.parentElement; p; p = p.parentElement) if (p.getAttribute("data-asv") === "mask") list.push(p);
+    list.forEach(function (x) { revealed.set(x, identity(x)); unmask(x); });
   }, true);
   document.addEventListener("play", pauseMedia, true);
 
@@ -150,9 +213,12 @@
     var was = active;
     active = isActive(settings);
     seen = new WeakMap();
-    document.querySelectorAll(".asv-masked,.asv-hidden").forEach(function (e) { e.classList.remove("asv-masked", "asv-hidden"); });
+    endPeek();
+    maskedEls.forEach(unmask);
+    document.querySelectorAll("[data-asv]").forEach(unmask);
     if (!active) { closeWall(); if (was) mo.disconnect(); return; }
-    if (!was) mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["title", "aria-label", "alt"] });
+    if (!was) mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["title", "aria-label", "alt", "data-asv"], attributeOldValue: false });
+    theme();
     fullScan = true; schedule();
   }
 
@@ -161,5 +227,5 @@
     if (area === "sync") chrome.storage.sync.get(ASV_DEFAULTS, apply);
   });
   // Le titre d'onglet change sans muter le body sur certaines SPA.
-  setInterval(function () { if (active) checkPage(); }, 1000);
+  setInterval(function () { if (active) { checkPage(); theme(); } }, 1000);
 })();
