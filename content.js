@@ -9,7 +9,7 @@
     { re: /(^|\.)(x|twitter)\.com$/, sel: "article,[data-testid=trend],[data-testid=UserCell],[data-testid=typeaheadResult]", page: /\/status\//,
       skip: "article [data-testid=User-Name],article [data-testid=socialContext],article [data-testid=Tweet-User-Avatar]",
       // Titre d'un tweet : 'Nom on X: "texte" / X'. Seul le texte entre guillemets compte, pas le nom.
-      title: function (t) { return / \/ X$/.test(t) ? t.replace(/^[^"«“]*["«“]/, "") : t; } },
+      title: function (t) { return / \/ X$/.test(t) ? t.replace(/^[\s\S]*? X\s?:\s?["«“]/, "") : t; } },
     { re: /(^|\.)reddit\.com$/, sel: "shreddit-post,shreddit-comment,article,[data-testid=post-container],faceplate-tracker[noun=trending_search],reddit-recent-pages li", page: /\/comments\// },
     { re: /(^|\.)discord\.com$/, sel: "li[id^=chat-messages-],[data-list-item-id^=channels___],[data-list-item-id^=guildsnav___],[class*=threadSidebar] li,[class*=searchResult]", page: null },
     { re: /(^|\.)tiktok\.com$/, sel: "[data-e2e=recommend-list-item-container],[data-e2e=search_top-item],[data-e2e=search_video-item],[data-e2e=comment-level-1],[data-e2e=user-post-item],article", page: /\/video\// },
