@@ -1,0 +1,11 @@
+*{box-sizing:border-box}body{width:300px;margin:0;padding:14px;background:#111116;color:#ececf1;font:13px/1.4 system-ui,sans-serif}
+header{display:flex;align-items:center;justify-content:space-between}h1{font-size:16px;margin:0}
+.count{margin:8px 0 12px;color:#a9a9b5}.count b{color:#ff4f9a;font-size:18px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0}.chk{justify-content:flex-start}
+.col{display:flex;flex-direction:column;gap:4px;margin:10px 0}
+select,input[type=date],textarea{background:#1c1c24;color:#ececf1;border:1px solid #2e2e3a;border-radius:8px;padding:5px 7px;font:inherit}
+textarea{resize:vertical}.note{color:#7d7d8a;font-size:11px;margin:10px 0 0}
+.sw{position:relative;width:40px;height:22px}.sw input{opacity:0;width:0;height:0}
+.sw span{position:absolute;inset:0;background:#33333f;border-radius:22px;cursor:pointer;transition:background .15s}
+.sw span::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+.sw input:checked+span{background:#ff4f9a}.sw input:checked+span::after{transform:translateX(18px)}

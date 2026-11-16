@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <header><h1>Anti-Spoil VI</h1><label class="sw"><input type="checkbox" id="enabled"><span></span></label></header>
+  <p class="count"><b id="count">0</b> spoils masqués</p>
+  <label class="row">Mode
+    <select id="mode"><option value="mask">Bloc masqué (clic pour voir)</option><option value="hide">Supprimer complètement</option></select>
+  </label>
+  <label class="row chk"><input type="checkbox" id="strict"> Bloquer aussi Rockstar / Take-Two</label>
+  <label class="row">Couper automatiquement le
+    <input type="date" id="until">
+  </label>
+  <label class="col">Mots-clés en plus (un par ligne)<textarea id="extra" rows="3" placeholder="Nom de perso, mission..."></textarea></label>
+  <label class="col">Sites jamais filtrés (un par ligne)<textarea id="allow" rows="2" placeholder="gta6hub.fr"></textarea></label>
+  <p class="note">Discord : marche sur discord.com dans le navigateur, pas dans l'appli Discord.</p>
+  <script src="keywords.js"></script><script src="popup.js"></script>
+</body></html>

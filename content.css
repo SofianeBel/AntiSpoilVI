@@ -1,0 +1,11 @@
+.asv-masked{position:relative!important;min-height:44px;border-radius:12px!important;overflow:hidden!important;background:repeating-linear-gradient(135deg,#17171c 0 14px,#1d1d24 14px 28px)!important;cursor:pointer!important;color:transparent!important}
+.asv-masked>*{visibility:hidden!important}
+.asv-masked::before{content:"Spoil GTA VI masqué · clic pour afficher";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:8px;text-align:center;font:600 13px/1.3 system-ui,sans-serif;color:#f2f2f5;visibility:visible!important;z-index:2;pointer-events:none}
+.asv-hidden{display:none!important}
+#asv-wall{position:fixed;inset:0;z-index:2147483647;background:#0d0d11;color:#f2f2f5;display:flex;align-items:center;justify-content:center;font:16px/1.5 system-ui,sans-serif}
+#asv-wall .asv-box{max-width:420px;padding:28px;text-align:center}
+#asv-wall h1{font-size:22px;margin:0 0 8px;color:#fff}
+#asv-wall p{margin:0 0 20px;color:#b8b8c2}
+#asv-wall button{font:600 14px system-ui,sans-serif;border:0;border-radius:10px;padding:10px 16px;margin:4px;cursor:pointer}
+#asv-wall .asv-back{background:#ff4f9a;color:#111}
+#asv-wall .asv-go{background:#2a2a33;color:#ddd}

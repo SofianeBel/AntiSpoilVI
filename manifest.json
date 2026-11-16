@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Anti-Spoil VI",
+  "version": "1.0.0",
+  "description": "Masque tout ce qui parle de GTA VI sur YouTube, X, Reddit, Discord web, TikTok, Twitch et le reste du web.",
+  "permissions": [
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "keywords.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Anti-Spoil VI"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "anti-spoil-vi@local",
+      "strict_min_version": "115.0"
+    }
+  }
+}
