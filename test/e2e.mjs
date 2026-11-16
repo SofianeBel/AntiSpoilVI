@@ -81,5 +81,12 @@ ok("x.com : auteur nommé GTA VI, sujet sans rapport : pas masqué", !(await xs(
 ok("x.com : tweet qui parle de GTA 6 : masqué", (await xs("p1")) === "mask", String(await xs("p1")));
 await xp.evaluate(() => { document.querySelector("#p5 .t a").textContent = "Le trailer de GTA 6 est sorti"; }); await xp.waitForTimeout(100);
 ok("x.com : même retweet, contenu GTA : masqué", (await xs("p5")) === "mask", String(await xs("p5")));
+const st = await ctx.newPage(); await st.route("https://x.com/**", (r) => { const u = r.request().url();
+  const t = u.includes("/6") ? 'GTA VI Leaks on X: "Bon appétit à tous, pizza ce soir" / X' : 'Marie on X: "Le trailer de GTA 6 est sorti" / X';
+  r.fulfill({ contentType: "text/html; charset=utf-8", body: "<title>" + t + "</title><p>tweet</p>" }); });
+await st.goto("https://x.com/gta6leaks/status/6"); await st.waitForTimeout(600);
+ok("x.com/status : auteur nommé GTA VI, tweet sans rapport : pas de blocage", !(await st.evaluate(() => !!document.getElementById("asv-wall"))));
+await st.goto("https://x.com/marie/status/7"); await st.waitForTimeout(600);
+ok("x.com/status : tweet qui parle de GTA 6 : blocage", await st.evaluate(() => !!document.getElementById("asv-wall")));
 console.log(results.join("\n")); console.log("shots: " + shots);
 await ctx.close(); srv.close(); process.exit(results.some((r) => r.startsWith("FAIL")) ? 1 : 0);

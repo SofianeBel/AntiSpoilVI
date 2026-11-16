@@ -7,7 +7,9 @@
     { re: /(^|\.)youtube\.com$/, sel: "ytd-rich-item-renderer,ytd-video-renderer,ytd-compact-video-renderer,ytd-grid-video-renderer,ytd-reel-item-renderer,ytd-playlist-renderer,ytd-channel-renderer,ytd-comment-thread-renderer,ytd-post-renderer,ytd-notification-renderer,yt-lockup-view-model,ytm-shorts-lockup-view-model,ytd-universal-watch-card-renderer,ytd-search-refinement-card-renderer,yt-page-header-view-model,yt-page-header-renderer,ytd-c4-tabbed-header-renderer", page: /^\/(watch|shorts\/)/ },
     // skip : zones lues nulle part. Le nom, le @ et "a reposté" d'un compte "GTA 6 News" masquaient tout ce qu'il retweete.
     { re: /(^|\.)(x|twitter)\.com$/, sel: "article,[data-testid=trend],[data-testid=UserCell],[data-testid=typeaheadResult]", page: /\/status\//,
-      skip: "article [data-testid=User-Name],article [data-testid=socialContext],article [data-testid=Tweet-User-Avatar]" },
+      skip: "article [data-testid=User-Name],article [data-testid=socialContext],article [data-testid=Tweet-User-Avatar]",
+      // Titre d'un tweet : 'Nom on X: "texte" / X'. Seul le texte entre guillemets compte, pas le nom.
+      title: function (t) { return / \/ X$/.test(t) ? t.replace(/^[^"«“]*["«“]/, "") : t; } },
     { re: /(^|\.)reddit\.com$/, sel: "shreddit-post,shreddit-comment,article,[data-testid=post-container],faceplate-tracker[noun=trending_search],reddit-recent-pages li", page: /\/comments\// },
     { re: /(^|\.)discord\.com$/, sel: "li[id^=chat-messages-],[data-list-item-id^=channels___],[data-list-item-id^=guildsnav___],[class*=threadSidebar] li,[class*=searchResult]", page: null },
     { re: /(^|\.)tiktok\.com$/, sel: "[data-e2e=recommend-list-item-container],[data-e2e=search_top-item],[data-e2e=search_video-item],[data-e2e=comment-level-1],[data-e2e=user-post-item],article", page: /\/video\// },
@@ -104,7 +106,8 @@
     var onPage = site ? (site.page && site.page.test(location.pathname)) : true;
     var key = location.href;
     var h1 = document.querySelector("h1");
-    var hit = onPage && (rx.test(document.title) || (h1 && rx.test(h1.textContent || "")));
+    var title = site && site.title ? site.title(document.title) : document.title;
+    var hit = onPage && (rx.test(title) || (h1 && rx.test(h1.textContent || "")));
     if (hit && wallDismissed !== key) openWall(key); else if (!hit) closeWall();
   }
 
