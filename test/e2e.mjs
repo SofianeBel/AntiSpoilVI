@@ -66,7 +66,19 @@ if (extId) { const pop = await ctx.newPage(); await pop.setViewportSize({ width:
   await page.bringToFront(); await page.waitForTimeout(800);
   ok("coupé depuis la popup : plus rien de masqué", (await page.evaluate(() => document.querySelectorAll("[data-asv]").length)) === 0);
   await pop.click(".sw"); await page.waitForTimeout(800);
-  ok("rallumé : re-masqué", (await page.evaluate(() => document.querySelectorAll("[data-asv=mask]").length)) >= 1); }
+  ok("rallumé : re-masqué", (await page.evaluate(() => document.querySelectorAll("[data-asv=mask]").length)) >= 1);
+  // Post validé d'un clic (p3, Entrée plus haut) : reste affiché après rechargement, remasqué après "Oublier".
+  await pop.reload(); await pop.waitForTimeout(300);
+  ok("popup : posts validés comptés", await pop.evaluate(() => !document.getElementById("kept").hidden && /\d/.test(document.getElementById("keptN").textContent)), await pop.evaluate(() => document.getElementById("keptN").textContent));
+  await pop.screenshot({ path: path.join(shots, "popup-kept.png"), fullPage: true });
+  const again = await ctx.newPage(); await again.goto(url); await again.waitForTimeout(800);
+  const k = await again.evaluate(() => ({ p1: document.getElementById("p1").getAttribute("data-asv"), p3: document.getElementById("p3").getAttribute("data-asv") }));
+  ok("post validé : toujours affiché sur une nouvelle page", !k.p3 && k.p1 === "mask", JSON.stringify(k));
+  await pop.click("#forget"); await again.waitForTimeout(400);
+  ok("Oublier : le post validé est remasqué", (await again.evaluate(() => document.getElementById("p3").getAttribute("data-asv"))) === "mask");
+  await again.reload(); await again.waitForTimeout(800);
+  ok("Oublier : toujours masqué après rechargement", (await again.evaluate(() => document.getElementById("p3").getAttribute("data-asv"))) === "mask");
+  await again.close(); }
 else ok("popup trouvée", false);
 const wall = await ctx.newPage(); await wall.route("**/wall", (r) => r.fulfill({ contentType: "text/html", body: "<title>GTA 6 : tout sur Vice City</title><h1>GTA 6 : tout sur Vice City</h1>" }));
 await wall.goto(url + "wall"); await wall.waitForTimeout(600);
@@ -79,6 +91,11 @@ const xs = (id) => xp.evaluate((id) => document.getElementById(id).getAttribute(
 ok("x.com : retweet d'un compte nommé GTA 6, sujet sans rapport : pas masqué", !(await xs("p5")), String(await xs("p5")));
 ok("x.com : auteur nommé GTA VI, sujet sans rapport : pas masqué", !(await xs("p6")), String(await xs("p6")));
 ok("x.com : tweet qui parle de GTA 6 : masqué", (await xs("p1")) === "mask", String(await xs("p1")));
+const xby = await xp.evaluate(() => document.getElementById("p1").getAttribute("data-asv-by"));
+ok("x.com : auteur affiché sur le masque", xby === "Leak Hub @leakhub", String(xby));
+const xav = await xp.evaluate(() => getComputedStyle(document.getElementById("p1"), "::before").backgroundImage);
+ok("x.com : photo du compte affichée sur le masque", /url\("data:image\/svg/.test(xav), xav.slice(0, 80));
+await xp.screenshot({ path: path.join(shots, "x-author.png") });
 await xp.evaluate(() => { document.querySelector("#p5 .t a").textContent = "Le trailer de GTA 6 est sorti"; }); await xp.waitForTimeout(100);
 ok("x.com : même retweet, contenu GTA : masqué", (await xs("p5")) === "mask", String(await xs("p5")));
 const st = await ctx.newPage(); await st.route("https://x.com/**", (r) => { const u = r.request().url();
@@ -96,6 +113,11 @@ await yt.goto("https://www.youtube.com/results?search_query=gta"); await yt.wait
 const ys = () => yt.evaluate(() => { const c = document.getElementById("v0"), p = document.getElementById("video-preview");
   return { asv: c.getAttribute("data-asv"), peek: c.hasAttribute("data-asv-peek"), prv: getComputedStyle(p).display !== "none" && getComputedStyle(p).visibility === "visible" }; });
 ok("youtube : vidéo GTA masquée", (await ys()).asv === "mask");
+const yby = await yt.evaluate(() => document.getElementById("v0").getAttribute("data-asv-by"));
+ok("youtube : chaîne affichée sur le masque", yby === "Chaîne Test", String(yby));
+const yav = await yt.evaluate(() => getComputedStyle(document.getElementById("v0"), "::before").backgroundImage);
+ok("youtube : photo de la chaîne affichée sur le masque", /url\("data:image\/svg/.test(yav), yav.slice(0, 80));
+await yt.screenshot({ path: path.join(shots, "yt-author.png") });
 ok("youtube : vidéo sans rapport pas masquée", !(await yt.evaluate(() => document.getElementById("v1").getAttribute("data-asv"))));
 // Une vidéo normale garde sa prévisualisation, dès le chargement.
 const n1 = await yt.locator("#v1 .thumb").boundingBox(); await yt.mouse.move(n1.x + 60, n1.y + 60); await yt.waitForTimeout(100);

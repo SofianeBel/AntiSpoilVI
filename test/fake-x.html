@@ -16,8 +16,9 @@ var posts=[["Marie","/marie/status/1","Café et code ce matin, rien de spécial.
 ["GTA VI Leaks","/gta6leaks/status/6","Bon appétit à tous, pizza ce soir"]];
 if(location.search.includes('light'))document.body.className='light';
 var feed=document.getElementById('feed');
+function av(i){return 'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><rect width="2" height="2" fill="hsl('+i*50+',60%,55%)"/><rect width="1" height="1" fill="#fff"/></svg>');}
 posts.forEach(function(p,i){var a=document.createElement('article');a.className='css-1';a.id='p'+i;
-a.innerHTML=(p[3]?'<div class="n" data-testid="socialContext">'+p[3]+' a reposté</div>':'')+'<div data-testid="User-Name"><a href="/'+p[0]+'">'+p[0]+'</a> <span class="n">@'+p[0].toLowerCase().replace(/ /g,'')+'</span></div><div class="t"><a href="'+p[1]+'">'+p[2]+'</a></div>'+(i%2?'<div class="img"></div>':'')+'<div class="n">vues <span class="v">'+(100*i)+'</span></div>';
+a.innerHTML=(p[3]?'<div class="n" data-testid="socialContext">'+p[3]+' a reposté</div>':'')+'<div data-testid="Tweet-User-Avatar"><img alt="" width="40" height="40" src="'+av(i)+'"></div><div data-testid="User-Name"><a href="/'+p[0]+'">'+p[0]+'</a> <span class="n">@'+p[0].toLowerCase().replace(/ /g,'')+'</span></div><div class="t"><a href="'+p[1]+'">'+p[2]+'</a></div>'+(i%2?'<div class="img"></div>':'')+'<div class="n">vues <span class="v">'+(100*i)+'</span></div>';
 // imite React : className réécrit au survol
 a.addEventListener('pointerenter',function(){a.dataset.h='1';render(a)});
 a.addEventListener('pointerleave',function(){delete a.dataset.h;render(a)});

@@ -8,25 +8,33 @@
       // Lecteur de prévisualisation posé par-dessus la miniature, hors de la carte : il fait partie de l'aperçu.
       overlay: "ytd-app #video-preview",
       // Grilles : la carte et son contenu sont masqués tous les deux, l'aperçu vise la carte entière.
-      nest: true, img: ["https://i.ytimg.com/vi/", "https://i.ytimg.com/vi_webp/", "https://i9.ytimg.com/vi/", "https://i9.ytimg.com/vi_webp/"] },
+      nest: true, av: "#author-thumbnail img,#avatar img,yt-avatar-shape img,.yt-spec-avatar-shape__image", by: "#author-text,ytd-channel-name #text,#channel-name #text,.yt-content-metadata-view-model-wiz__metadata-text,.yt-content-metadata-view-model__metadata-text,a[href^='/@']", img: ["https://i.ytimg.com/vi/", "https://i.ytimg.com/vi_webp/", "https://i9.ytimg.com/vi/", "https://i9.ytimg.com/vi_webp/"] },
     // skip : zones lues nulle part. Le nom, le @ et "a reposté" d'un compte "GTA 6 News" masquaient tout ce qu'il retweete.
     { re: /(^|\.)(x|twitter)\.com$/, sel: "article,[data-testid=trend],[data-testid=UserCell],[data-testid=typeaheadResult]", page: /\/status\//,
       skip: "article [data-testid=User-Name],article [data-testid=socialContext],article [data-testid=Tweet-User-Avatar]",
       // Titre d'un tweet : 'Nom on X: "texte" / X'. Seul le texte entre guillemets compte, pas le nom.
+      av: "[data-testid=Tweet-User-Avatar] img",
+      by: function (el) {
+        var u = el.querySelector("[data-testid=User-Name]"); if (!u) return "";
+        var a = u.querySelector("a"), h = (u.textContent.match(/@\w+/) || [""])[0], n = a ? a.textContent.trim() : "";
+        return n && n !== h ? n + " " + h : h;
+      },
       title: function (t) { return / \/ X$/.test(t) ? t.replace(/^[\s\S]*? X\s?:\s?["«“]/, "") : t; },
       img: ["https://pbs.twimg.com/media/", "https://pbs.twimg.com/ext_tw_video_thumb/", "https://pbs.twimg.com/amplify_video_thumb/", "https://pbs.twimg.com/tweet_video_thumb/", "https://pbs.twimg.com/card_img/"] },
-    { re: /(^|\.)reddit\.com$/, sel: "shreddit-post,shreddit-comment,article,[data-testid=post-container],faceplate-tracker[noun=trending_search],reddit-recent-pages li", page: /\/comments\//, img: ["https://i.redd.it/", "https://preview.redd.it/", "https://external-preview.redd.it/"] },
-    { re: /(^|\.)discord\.com$/, sel: "li[id^=chat-messages-],[data-list-item-id^=channels___],[data-list-item-id^=guildsnav___],[class*=threadSidebar] li,[class*=searchResult]", page: null, img: ["https://media.discordapp.net/attachments/", "https://cdn.discordapp.com/attachments/"] },
-    { re: /(^|\.)tiktok\.com$/, sel: "[data-e2e=recommend-list-item-container],[data-e2e=search_top-item],[data-e2e=search_video-item],[data-e2e=comment-level-1],[data-e2e=user-post-item],article", page: /\/video\//, img: ["https://p16-sign", "https://p19-sign", "https://p77-sign"], imgHost: /\.tiktokcdn(-us)?\.com\// },
-    { re: /(^|\.)twitch\.tv$/, sel: "article,[data-a-target=card],.chat-line__message", page: null, img: ["https://static-cdn.jtvnw.net/cf_vods/", "https://static-cdn.jtvnw.net/previews-ttv/", "https://static-cdn.jtvnw.net/s3_vods/"] },
+    { re: /(^|\.)reddit\.com$/, sel: "shreddit-post,shreddit-comment,article,[data-testid=post-container],faceplate-tracker[noun=trending_search],reddit-recent-pages li", page: /\/comments\//, av: "[slot=commentAvatar] img,[slot=credit-bar] img,img.shreddit-subreddit-icon__icon",
+      by: function (el) { var a = el.getAttribute("author"), r = el.getAttribute("subreddit-prefixed-name"); return (a ? "u/" + a : "") + (a && r ? " dans " : "") + (r || ""); }, img: ["https://i.redd.it/", "https://preview.redd.it/", "https://external-preview.redd.it/"] },
+    { re: /(^|\.)discord\.com$/, sel: "li[id^=chat-messages-],[data-list-item-id^=channels___],[data-list-item-id^=guildsnav___],[class*=threadSidebar] li,[class*=searchResult]", page: null, by: "[class*=username_]", av: "img[class*=avatar_]", img: ["https://media.discordapp.net/attachments/", "https://cdn.discordapp.com/attachments/"] },
+    { re: /(^|\.)tiktok\.com$/, sel: "[data-e2e=recommend-list-item-container],[data-e2e=search_top-item],[data-e2e=search_video-item],[data-e2e=comment-level-1],[data-e2e=user-post-item],article", page: /\/video\//, av: "[data-e2e=user-avatar] img,[data-e2e=video-author-avatar] img,span[shape=circle] img", by: "[data-e2e=video-author-uniqueid],[data-e2e=search-card-user-unique-id],a[href^='/@']", img: ["https://p16-sign", "https://p19-sign", "https://p77-sign"], imgHost: /\.tiktokcdn(-us)?\.com\// },
+    { re: /(^|\.)twitch\.tv$/, sel: "article,[data-a-target=card],.chat-line__message", page: null, by: "[data-a-target=preview-card-channel-link],.chat-author__display-name", av: "img.tw-image-avatar", img: ["https://static-cdn.jtvnw.net/cf_vods/", "https://static-cdn.jtvnw.net/previews-ttv/", "https://static-cdn.jtvnw.net/s3_vods/"] },
     { re: /(^|\.)instagram\.com$/, sel: "article,[role=button]:has(img)", page: null, img: ["https://scontent"], imgHost: /\.cdninstagram\.com\// },
-    { re: /(^|\.)google\.[a-z.]+$/, sel: ".MjjYud,.g,g-inner-card,.WlydOe,[data-attrid=title]", page: null, img: ["https://encrypted-tbn0.gstatic.com/images"] }
+    { re: /(^|\.)google\.[a-z.]+$/, sel: ".MjjYud,.g,g-inner-card,.WlydOe,[data-attrid=title]", page: null, by: "cite", av: "img.XNo5Ab", img: ["https://encrypted-tbn0.gstatic.com/images"] }
   ];
   var site = SITES.filter(function (s) { return s.re.test(host); })[0];
   var SEL = site ? site.sel : "article";
   var SKIP = site && site.skip || null;
   var OVERLAY = site && site.overlay || null;
   var NEST = !!(site && site.nest);
+  var BY = site && site.by || null, AV = site && site.av || null;
   // Miniatures et médias jugés par le modèle d'image (pas les avatars). Firefox n'a pas d'offscreen : pas de modèle.
   var PREFIX = site && site.img && !/Firefox\//.test(navigator.userAgent) ? site.img : null;
   function judgeable(u) {
@@ -96,6 +104,69 @@
     return a ? a.getAttribute("href") : (el.textContent || "").slice(0, 300);
   }
 
+  // Auteur affiché sur le masque : on connaît souvent la chaîne ou le compte, et on sait s'il montre du gameplay.
+  // Sélecteurs essayés dans l'ordre (le nom d'abord, le lien @ en dernier), seulement quand un bloc est masqué.
+  function authorOf(el) {
+    var t = "";
+    if (typeof BY === "function") t = BY(el) || "";
+    else if (BY) {
+      var sels = BY.split(",");
+      for (var i = 0; i < sels.length && !t; i++) {
+        var n = el.querySelector(sels[i]);
+        if (n) t = (n.textContent || "").trim() || (n.getAttribute("href") || "").replace(/^\/@?/, "@");
+      }
+    }
+    t = t.replace(/\s+/g, " ").split(" › ")[0].trim();
+    return t.length > 60 ? t.slice(0, 59) + "…" : t;
+  }
+
+  // Photo du compte (ou icône du site) à la place du palmier. Image déjà chargée par la page, passée en variable CSS
+  // (une propriété custom dans style : React n'y touche pas, et aucun nœud n'est ajouté dans l'arbre du site).
+  function avatarOf(el) {
+    var sels = AV.split(",");
+    for (var i = 0; i < sels.length; i++) {
+      var m = el.querySelector(sels[i]), u = m && (m.currentSrc || m.getAttribute("src") || "");
+      if (u && /^(https?:|data:image\/)/.test(u)) return u;
+    }
+    return "";
+  }
+  function setAvatar(el) {
+    var u = avatarOf(el);
+    if (!u) return;
+    el.style.setProperty("--asv-av", "url(" + JSON.stringify(u.replace(/[\r\n]/g, "")) + ")");
+    el.setAttribute("data-asv-av", "");
+  }
+
+  // Posts validés d'un clic, gardés entre les pages et les sessions (chrome.storage.local, partagé entre onglets).
+  // Seul un lien qui désigne un post précis sert de clé : un premier lien générique ("/news") validerait tous les articles.
+  var kept = new Set(), keptNew = [], keptTimer = null, KEPT_MAX = 2000;
+  var POST = "a[href*='/status/'],a[href*='/watch'],a[href*='/shorts/'],a[href*='/comments/'],a[href*='/video/']";
+  function keyOf(el) {
+    var sid = el.getAttribute("thingid") || el.id;
+    if (sid && /^(t[13]_|chat-messages-)/.test(sid)) return host + "#" + sid; // Reddit, Discord : id du post ou du message
+    var a = el.querySelector(POST), u;
+    if (!a) return null;
+    try { u = new URL(a.getAttribute("href"), location.href); } catch (e) { return null; }
+    var v = u.searchParams.get("v"), lc = u.searchParams.get("lc");
+    // YouTube : la vidéo (et le commentaire via lc) ; X : /status/id sans /photo/1 ni /analytics.
+    var p = v ? "/watch?v=" + v + (lc ? "&lc=" + lc : "") : u.pathname.replace(/(\/status\/\d+).*$/, "$1").replace(/\/+$/, "");
+    return u.hostname.replace(/^www\./, "") + p;
+  }
+  function keep(k) {
+    if (!k || kept.has(k)) return;
+    kept.add(k); keptNew.push(k);
+    clearTimeout(keptTimer);
+    keptTimer = setTimeout(function () {
+      var add = keptNew; keptNew = [];
+      try {
+        chrome.storage.local.get({ kept: [] }, function (r) {
+          var list = r.kept.filter(function (x) { return add.indexOf(x) < 0; }).concat(add);
+          chrome.storage.local.set({ kept: list.slice(-KEPT_MAX) });
+        });
+      } catch (e) {}
+    }, 400);
+  }
+
   // Attribut et pas classe : React (X, Reddit) réécrit className au survol et effaçait le masque.
   function mask(el, id) {
     var fresh = !maskedEls.has(el) || maskedId.get(el) !== id;
@@ -105,6 +176,9 @@
     maskedId.set(el, id);
     if (!el.hasAttribute("tabindex")) { el.setAttribute("tabindex", "0"); el.setAttribute("data-asv-tab", ""); }
     if (el.getAttribute("data-asv") !== settings.mode) el.setAttribute("data-asv", settings.mode);
+    if (BY && (fresh || !el.hasAttribute("data-asv-by"))) { var by = authorOf(el); if (by) el.setAttribute("data-asv-by", by); else el.removeAttribute("data-asv-by"); }
+    if (AV && fresh) { el.style.removeProperty("--asv-av"); el.removeAttribute("data-asv-av"); }
+    if (AV && !el.hasAttribute("data-asv-av")) setAvatar(el);
     syncCover();
   }
   function unmask(el) {
@@ -113,6 +187,8 @@
     if (el.hasAttribute("data-asv")) el.removeAttribute("data-asv");
     el.removeAttribute("data-asv-peek");
     el.removeAttribute("data-asv-size");
+    el.removeAttribute("data-asv-by");
+    if (el.hasAttribute("data-asv-av")) { el.style.removeProperty("--asv-av"); el.removeAttribute("data-asv-av"); }
     syncCover();
     if (el.hasAttribute("data-asv-tab")) { el.removeAttribute("tabindex"); el.removeAttribute("data-asv-tab"); }
   }
@@ -120,12 +196,17 @@
   function check(el) {
     if (!el.isConnected) return;
     var t = textOf(el), imgs = mediaOf(el), key = t + "\n" + imgs.map(srcOf).join(" ");
-    if (seen.get(el) === key) return;
+    if (seen.get(el) === key) {
+      // Photo chargée en différé (lazy) : le texte n'a pas changé, on la reprend tant qu'elle manque.
+      if (AV && maskedEls.has(el) && !el.hasAttribute("data-asv-av")) setAvatar(el);
+      return;
+    }
     seen.set(el, key);
-    var hit = rx.test(t), id = identity(el);
-    if (!hit && imgs.length && revealed.get(el) !== id) hit = judgeImages(imgs);
+    var hit = rx.test(t), id = identity(el), ok = revealed.get(el) === id;
+    if (!ok && kept.size && (hit || imgs.length) && kept.has(keyOf(el))) ok = true; // validé avant, ici ou dans un autre onglet
+    if (!hit && imgs.length && !ok) hit = judgeImages(imgs);
     else imgs.forEach(clearWait); // déjà masquée par le texte, ou affichée volontairement : rien à juger
-    if (hit && revealed.get(el) !== id) mask(el, id);
+    if (hit && !ok) mask(el, id);
     else unmask(el); // YouTube et X recyclent leurs cartes : on démasque si le contenu a changé.
   }
 
@@ -346,7 +427,7 @@
     // On affiche le bloc cliqué, les blocs masqués dedans et ceux qui l'englobent.
     var list = [el].concat([].slice.call(el.querySelectorAll("[data-asv=mask]")));
     for (var p = el.parentElement; p; p = p.parentElement) if (p.getAttribute("data-asv") === "mask") list.push(p);
-    list.forEach(function (x) { revealed.set(x, identity(x)); unmask(x); });
+    list.forEach(function (x) { revealed.set(x, identity(x)); keep(keyOf(x)); unmask(x); });
   }
   // srcset/<picture> : l'image réellement affichée n'est connue qu'au chargement. On rejuge la carte avant le rendu.
   document.addEventListener("load", function (e) {
@@ -377,9 +458,21 @@
     fullScan = true; schedule();
   }
 
-  chrome.storage.sync.get(ASV_DEFAULTS, apply);
+  // Réglages et posts validés lus en parallèle ; le premier passage attend les deux.
+  var boot = 2, firstSettings = null;
+  function booted() { if (--boot === 0) apply(firstSettings); }
+  chrome.storage.local.get({ kept: [] }, function (r) { kept = new Set(r.kept); booted(); });
+  chrome.storage.sync.get(ASV_DEFAULTS, function (s) { firstSettings = s; booted(); });
   chrome.storage.onChanged.addListener(function (ch, area) {
-    if (area === "sync") chrome.storage.sync.get(ASV_DEFAULTS, apply);
+    if (area === "sync" && !boot) chrome.storage.sync.get(ASV_DEFAULTS, apply);
+    if (area === "local" && ch.kept) {
+      // Validé dans un autre onglet, ou mémoire vidée depuis la popup : on rejuge les blocs de la page.
+      var next = new Set((ch.kept.newValue || []).concat(keptNew)), dropped = next.size < kept.size, changed = dropped;
+      next.forEach(function (k) { if (!kept.has(k)) changed = true; });
+      kept = next;
+      if (dropped && !next.size) revealed = new WeakMap(); // "Oublier" : même ce qui a été cliqué sur cette page est remasqué
+      if (changed && active) { seen = new WeakMap(); fullScan = true; schedule(); }
+    }
   });
   // Le titre d'onglet change sans muter le body sur certaines SPA.
   setInterval(function () { if (active) { checkPage(); theme(); } }, 1000);

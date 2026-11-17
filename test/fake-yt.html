@@ -8,7 +8,7 @@ ytd-video-renderer,yt-lockup-view-model{display:flex;gap:16px;padding:12px;width
 var vids=[["/watch?v=gta","Trailer GTA 6 : Vice City en 4K"],["/watch?v=cat","Mon chat fait du piano"],["/watch?v=grid","GTA 6 : Jason et Lucia en cavale",1]];
 var c=document.getElementById('contents'),prv=document.getElementById('video-preview');
 vids.forEach(function(v,i){var r=document.createElement(v[2]?'yt-lockup-view-model':'ytd-video-renderer');r.id='v'+i;
-r.innerHTML='<a class="thumb" href="'+v[0]+'"><img alt="" width="1" height="1"></a><div><a id="video-title" href="'+v[0]+'">'+v[1]+'</a><p>12 k vues</p></div>';
+r.innerHTML='<a class="thumb" href="'+v[0]+'"><img alt="" width="1" height="1"></a><div><a id="video-title" href="'+v[0]+'">'+v[1]+'</a><div id="avatar"><img alt="" width="24" height="24" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 2 2%22%3E%3Crect width=%222%22 height=%222%22 fill=%22%234a8%22/%3E%3Crect width=%221%22 height=%221%22 fill=%22%23fff%22/%3E%3C/svg%3E"></div><ytd-channel-name><span id="text">Chaîne Test</span></ytd-channel-name><p>12 k vues</p></div>';
 // grille : la carte est emballée dans ytd-rich-item-renderer, les deux sont masquées
 if(v[2]){var g=document.createElement('ytd-rich-item-renderer');g.id='g'+i;g.style.cssText='display:block;width:900px';g.appendChild(r);c.appendChild(g);}else c.appendChild(r);
 // imite YouTube : survoler la miniature (seulement si elle est visible) pose le lecteur de prévisualisation par-dessus, hors de la carte

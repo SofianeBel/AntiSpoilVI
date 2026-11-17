@@ -15,6 +15,13 @@ chrome.storage.local.get({ count: 0 }, function (r) {
   document.getElementById("count").textContent = r.count.toLocaleString("fr-FR");
   document.getElementById("countLabel").textContent = r.count > 1 ? "spoils masqués" : "spoil masqué";
 });
+// Posts validés d'un clic : affichés partout sans masque. "Oublier" les remasque.
+function showKept(n) {
+  document.getElementById("kept").hidden = !n;
+  document.getElementById("keptN").textContent = n + (n > 1 ? " posts validés, plus masqués" : " post validé, plus masqué");
+}
+chrome.storage.local.get({ kept: [] }, function (r) { showKept(r.kept.length); });
+document.getElementById("forget").addEventListener("click", function () { chrome.storage.local.set({ kept: [] }, function () { showKept(0); }); });
 var t = null, savedEl = document.getElementById("saved");
 function save() {
   clearTimeout(t);

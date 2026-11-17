@@ -6,7 +6,8 @@ Extension navigateur MV3 (Chrome, Edge, Brave, Opera, Firefox 115+) qui masque c
 - `content.js` : content script sur toutes les pages. Sélecteurs par site (`SITES`), masque, aperçu au survol, écran de blocage.
 - `content.css` : look du bloc masqué et de l'écran de blocage (style "plage pastel" : sable #f7e4c8, scotch menthe, palmier rose).
 - `keywords.js` : mots-clés et réglages par défaut, partagés entre le content script et la popup.
-- `popup.*` : réglages, sauvegardés dans `chrome.storage.sync`.
+- `popup.*` : réglages, sauvegardés dans `chrome.storage.sync`. Posts validés d'un clic dans `chrome.storage.local` (`kept`, 2000 max).
+- `icons/` : `logo.svg` (48, 128) et `logo-small.svg` (16, 32), PNG rendus depuis ces SVG.
 - `background.js` + `offscreen.*` : modèle d'image (onnxruntime-web dans `vendor/ort`, `model/vision.onnx` MobileCLIP-S0 fp32, tête `model/head.bin`). Le content script floute la miniature (`data-asv-img=wait`) jusqu'au verdict.
 - `ml/` : collecte, embeddings, entraînement, `ml/score.py` = référence Python des scores (le test vérifie que le JS donne pareil). Données dans `ml/data/` hors Git.
 

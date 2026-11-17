@@ -18,6 +18,8 @@ Ne supprime pas le dossier après l'installation : le navigateur charge l'extens
 ## Utilisation
 - Un bloc masqué : survole-le une demi-seconde pour jeter un œil (il se remasque dès que la souris sort), clique (ou Entrée au clavier) pour l'afficher pour de bon.
 - Sur mobile/tactile : un appui l'affiche.
+- Un post affiché d'un clic est validé : il reste visible après un rechargement, dans tous les onglets. « Oublier » dans la popup remasque tout.
+- Le masque indique l'auteur, avec sa photo de profil (chaîne YouTube, compte X, u/ et r/ sur Reddit, TikTok, Twitch, Discord, site d'un résultat Google) : si tu connais la source, tu sais si ça vaut le risque.
 
 ## Réglages (icône de l'extension)
 - On / off, et une date de coupure automatique
