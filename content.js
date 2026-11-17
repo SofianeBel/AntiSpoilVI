@@ -8,26 +8,43 @@
       // Lecteur de prévisualisation posé par-dessus la miniature, hors de la carte : il fait partie de l'aperçu.
       overlay: "ytd-app #video-preview",
       // Grilles : la carte et son contenu sont masqués tous les deux, l'aperçu vise la carte entière.
-      nest: true, img: /^https:\/\/i9?\.ytimg\.com\/(vi|vi_webp)\// },
+      nest: true, img: ["https://i.ytimg.com/vi/", "https://i.ytimg.com/vi_webp/", "https://i9.ytimg.com/vi/"] },
     // skip : zones lues nulle part. Le nom, le @ et "a reposté" d'un compte "GTA 6 News" masquaient tout ce qu'il retweete.
     { re: /(^|\.)(x|twitter)\.com$/, sel: "article,[data-testid=trend],[data-testid=UserCell],[data-testid=typeaheadResult]", page: /\/status\//,
       skip: "article [data-testid=User-Name],article [data-testid=socialContext],article [data-testid=Tweet-User-Avatar]",
       // Titre d'un tweet : 'Nom on X: "texte" / X'. Seul le texte entre guillemets compte, pas le nom.
       title: function (t) { return / \/ X$/.test(t) ? t.replace(/^[\s\S]*? X\s?:\s?["«“]/, "") : t; },
-      img: /^https:\/\/pbs\.twimg\.com\/(media|ext_tw_video_thumb|amplify_video_thumb|tweet_video_thumb|card_img)\// },
-    { re: /(^|\.)reddit\.com$/, sel: "shreddit-post,shreddit-comment,article,[data-testid=post-container],faceplate-tracker[noun=trending_search],reddit-recent-pages li", page: /\/comments\//, img: /^https:\/\/(i|preview|external-preview)\.redd\.it\// },
-    { re: /(^|\.)discord\.com$/, sel: "li[id^=chat-messages-],[data-list-item-id^=channels___],[data-list-item-id^=guildsnav___],[class*=threadSidebar] li,[class*=searchResult]", page: null, img: /^https:\/\/(media\.discordapp\.net|cdn\.discordapp\.com)\/attachments\// },
-    { re: /(^|\.)tiktok\.com$/, sel: "[data-e2e=recommend-list-item-container],[data-e2e=search_top-item],[data-e2e=search_video-item],[data-e2e=comment-level-1],[data-e2e=user-post-item],article", page: /\/video\//, img: /^https:\/\/[^/]+\.tiktokcdn(-us)?\.com\// },
-    { re: /(^|\.)twitch\.tv$/, sel: "article,[data-a-target=card],.chat-line__message", page: null, img: /^https:\/\/static-cdn\.jtvnw\.net\/(cf_vods|previews-ttv|s3_vods)\// },
-    { re: /(^|\.)instagram\.com$/, sel: "article,[role=button]:has(img)", page: null, img: /^https:\/\/[^/]+\.cdninstagram\.com\// },
-    { re: /(^|\.)google\.[a-z.]+$/, sel: ".MjjYud,.g,g-inner-card,.WlydOe,[data-attrid=title]", page: null, img: /^https:\/\/encrypted-tbn0\.gstatic\.com\/images/ }
+      img: ["https://pbs.twimg.com/media/", "https://pbs.twimg.com/ext_tw_video_thumb/", "https://pbs.twimg.com/amplify_video_thumb/", "https://pbs.twimg.com/tweet_video_thumb/", "https://pbs.twimg.com/card_img/"] },
+    { re: /(^|\.)reddit\.com$/, sel: "shreddit-post,shreddit-comment,article,[data-testid=post-container],faceplate-tracker[noun=trending_search],reddit-recent-pages li", page: /\/comments\//, img: ["https://i.redd.it/", "https://preview.redd.it/", "https://external-preview.redd.it/"] },
+    { re: /(^|\.)discord\.com$/, sel: "li[id^=chat-messages-],[data-list-item-id^=channels___],[data-list-item-id^=guildsnav___],[class*=threadSidebar] li,[class*=searchResult]", page: null, img: ["https://media.discordapp.net/attachments/", "https://cdn.discordapp.com/attachments/"] },
+    { re: /(^|\.)tiktok\.com$/, sel: "[data-e2e=recommend-list-item-container],[data-e2e=search_top-item],[data-e2e=search_video-item],[data-e2e=comment-level-1],[data-e2e=user-post-item],article", page: /\/video\//, img: ["https://p16-sign", "https://p19-sign", "https://p77-sign"], imgHost: /\.tiktokcdn(-us)?\.com\// },
+    { re: /(^|\.)twitch\.tv$/, sel: "article,[data-a-target=card],.chat-line__message", page: null, img: ["https://static-cdn.jtvnw.net/cf_vods/", "https://static-cdn.jtvnw.net/previews-ttv/", "https://static-cdn.jtvnw.net/s3_vods/"] },
+    { re: /(^|\.)instagram\.com$/, sel: "article,[role=button]:has(img)", page: null, img: ["https://scontent"], imgHost: /\.cdninstagram\.com\// },
+    { re: /(^|\.)google\.[a-z.]+$/, sel: ".MjjYud,.g,g-inner-card,.WlydOe,[data-attrid=title]", page: null, img: ["https://encrypted-tbn0.gstatic.com/images"] }
   ];
   var site = SITES.filter(function (s) { return s.re.test(host); })[0];
   var SEL = site ? site.sel : "article";
   var SKIP = site && site.skip || null;
   var OVERLAY = site && site.overlay || null;
   var NEST = !!(site && site.nest);
-  var IMG = site && site.img || null;   // miniatures et médias jugés par le modèle d'image (pas les avatars)
+  // Miniatures et médias jugés par le modèle d'image (pas les avatars). Firefox n'a pas d'offscreen : pas de modèle.
+  var PREFIX = site && site.img && !/Firefox\//.test(navigator.userAgent) ? site.img : null;
+  function judgeable(u) {
+    if (!PREFIX || !u) return false;
+    for (var i = 0; i < PREFIX.length; i++) if (u.indexOf(PREFIX[i]) === 0) return !site.imgHost || site.imgHost.test(u);
+    return false;
+  }
+  // Garde posée dès document_start, avant même la lecture des réglages : toute miniature d'une carte surveillée est
+  // floutée tant qu'elle n'est pas marquée sûre (data-asv-img=ok) pour son URL courante. Retirée si le filtre est coupé.
+  var guard = null;
+  if (PREFIX) {
+    guard = document.createElement("style");
+    var media = [];
+    PREFIX.forEach(function (p) { media.push("img[src^='" + p + "']", "video[poster^='" + p + "']"); });
+    guard.textContent = ":is(" + SEL + ") :is(" + media.join(",") + "):not([data-asv-img=ok]){filter:blur(18px) saturate(.5)!important;clip-path:inset(0)!important}";
+    (document.head || document.documentElement).appendChild(guard);
+  }
+  function setGuard(on) { if (guard) guard.disabled = !on; }
 
   var settings = null, rx = null, active = false;
   var seen = new WeakMap();      // élément -> texte déjà analysé
@@ -113,40 +130,50 @@
 
   // Images de la carte que le modèle sait juger. Lu dans la carte seulement, jamais dans toute la page.
   function mediaOf(el) {
-    if (!IMG || !settings.images) return [];
+    if (!PREFIX || !settings.images) return [];
     var out = [], list = el.querySelectorAll("img,video[poster]");
-    for (var i = 0; i < list.length && out.length < 6; i++) if (IMG.test(srcOf(list[i]))) out.push(list[i]);
+    for (var i = 0; i < list.length; i++) if (judgeable(srcOf(list[i]))) out.push(list[i]);
     return out;
   }
-  function srcOf(m) { return m.tagName === "VIDEO" ? m.poster : (m.currentSrc || m.src || ""); }
-  function clearWait(m) { if (m.hasAttribute("data-asv-img")) m.removeAttribute("data-asv-img"); }
+  // L'attribut src, pas currentSrc : au moment de la mutation currentSrc vaut encore l'ancienne image.
+  function srcOf(m) { return m.tagName === "VIDEO" ? m.poster : (m.getAttribute("src") ? m.src : ""); }
+  // "ok" n'est valable que pour l'URL notée dans data-asv-ok : si src change, check() repasse l'image en attente
+  // dans le rAF qui suit la mutation, avant que la nouvelle image puisse s'afficher.
+  function clearWait(m) { var u = srcOf(m); if (m.getAttribute("data-asv-img") !== "ok") m.setAttribute("data-asv-img", "ok"); if (m.getAttribute("data-asv-ok") !== u) m.setAttribute("data-asv-ok", u); }
 
   // Une image déjà jugée GTA VI masque la carte ; une image pas encore jugée reste floutée jusqu'au verdict.
   function judgeImages(imgs) {
     var hit = false;
     imgs.forEach(function (m) {
       var u = srcOf(m);
-      if (verdict.has(u)) { clearWait(m); if (verdict.get(u) !== null && verdict.get(u) >= imgThreshold) hit = true; return; }
+      if (verdict.has(u)) { clearWait(m); if (verdict.get(u) >= imgThreshold) hit = true; return; }
       if (m.getAttribute("data-asv-img") !== "wait") m.setAttribute("data-asv-img", "wait");
       ask(u, m);
     });
     return hit;
   }
-  function ask(u, m) {
-    if (asked.has(u)) { asked.get(u).add(m); return; }
-    asked.set(u, new Set([m]));
+  // Échec passager (message perdu, modèle pas prêt) : l'image reste floutée et on réessaie, jamais "sûre" par défaut.
+  var RETRY = [1000, 3000, 9000];
+  function ask(u, m, tries) {
+    tries = tries || 0;
+    if (asked.has(u) && !tries) { asked.get(u).add(m); return; }
+    if (!asked.has(u)) asked.set(u, new Set([m]));
     var done = function (r) {
-      if (r && r.threshold) imgThreshold = r.threshold;
-      verdict.set(u, r ? r.score : null);
+      if (!r || typeof r.score !== "number") {
+        if (tries < RETRY.length) setTimeout(function () { ask(u, m, tries + 1); }, RETRY[tries]);
+        return; // après les essais : reste floutée (la popup permet de couper l'analyse)
+      }
+      if (r.threshold) imgThreshold = r.threshold;
+      verdict.set(u, r.score);
       if (verdict.size > 3000) verdict.delete(verdict.keys().next().value);
       var waiting = asked.get(u); asked.delete(u);
-      if (!active) return;
+      if (!active || !waiting) return;
       // La carte est rejugée dans le prochain rAF, avant le rendu : masque ou défloutage, jamais l'image nette d'abord.
       waiting.forEach(function (img) { var c = img.isConnected && img.closest(SEL); if (c) { seen.delete(c); pending.add(c); } else clearWait(img); });
       schedule();
     };
     try { chrome.runtime.sendMessage({ t: "asv-img", url: u }, function (r) { void chrome.runtime.lastError; done(r); }); }
-    catch (e) { done(null); } // extension rechargée : le contexte n'existe plus
+    catch (e) { /* extension rechargée : le contexte n'existe plus, l'image reste floutée jusqu'au rechargement de la page */ }
   }
 
   // Filet de sécurité : un bloc masqué qui a perdu son attribut le retrouve avant le rendu.
@@ -325,9 +352,9 @@
     endPeek();
     lost.clear();
     document.querySelectorAll("[data-asv]").forEach(unmask);
-    document.querySelectorAll("[data-asv-img]").forEach(clearWait);
+    setGuard(active && settings.images);
     if (!active) { closeWall(); if (was) mo.disconnect(); return; }
-    if (!was) mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["title", "aria-label", "alt", "data-asv", "src", "poster"], attributeOldValue: false });
+    if (!was) mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["title", "aria-label", "alt", "data-asv", "src", "srcset", "poster"], attributeOldValue: false });
     theme();
     fullScan = true; schedule();
   }

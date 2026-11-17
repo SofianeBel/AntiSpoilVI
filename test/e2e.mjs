@@ -147,7 +147,7 @@ const imgPage = '<!doctype html><meta charset="utf-8"><title>Accueil - YouTube</
   .map((v, i) => '<ytd-rich-item-renderer id="i' + i + '"><a href="/watch?v=' + v[0] + '"><img src="https://i.ytimg.com/vi/' + v[0] + '/hqdefault.jpg"></a><a id="video-title" href="/watch?v=' + v[0] + '">' + v[1] + '</a></ytd-rich-item-renderer>').join("");
 const im = await ctx.newPage(); await im.route("https://www.youtube.com/**", (r) => r.fulfill({ contentType: "text/html; charset=utf-8", body: imgPage }));
 // Échantillonneur posé avant tout script : compte les frames où la miniature GTA VI est chargée, nette et pas masquée.
-await im.addInitScript(() => { window.__sharp = 0; window.__frames = 0; (function f() { const c = document.getElementById("i0"), m = c && c.querySelector("img");
+await im.addInitScript(() => { window.__sharp = 0; window.__frames = 0; window.__watch = "i0"; (function f() { const c = document.getElementById(window.__watch), m = c && c.querySelector("img");
   if (m) { window.__frames++; if (m.complete && m.naturalWidth && m.getAttribute("data-asv-img") !== "wait" && c.getAttribute("data-asv") !== "mask") window.__sharp++; }
   requestAnimationFrame(f); })(); });
 const t0 = Date.now(); await im.goto("https://www.youtube.com/");
@@ -157,6 +157,12 @@ ok("images : miniature GTA VI sans mot-clé masquée", iv.s[0] === "mask", JSON.
 ok("images : miniatures sans rapport pas masquées ni floutées", !iv.s[1] && !iv.s[2] && iv.wait === 0, JSON.stringify(iv));
 ok("images : la miniature GTA VI n'est jamais nette avant le verdict", iv.sharp === 0 && iv.frames > 10, iv.sharp + "/" + iv.frames + " frames nettes");
 await im.screenshot({ path: path.join(shots, "images.png") });
+// Carte recyclée : la miniature sûre (Forza) devient une miniature GTA VI. Jamais nette entre les deux.
+await im.evaluate(() => { window.__watch = "i1"; window.__sharp = 0; window.__frames = 0; const c = document.getElementById("i1");
+  c.querySelector("img").src = "https://i.ytimg.com/vi/VQRLujxTm3c/hqdefault.jpg"; c.querySelectorAll("a").forEach((a) => a.href = "/watch?v=VQRLujxTm3c"); });
+await im.waitForFunction(() => document.getElementById("i1").getAttribute("data-asv") === "mask", null, { timeout: 15000 }).catch(() => {});
+const rv = await im.evaluate(() => ({ asv: document.getElementById("i1").getAttribute("data-asv"), sharp: window.__sharp, frames: window.__frames }));
+ok("images : carte recyclée sûre puis GTA VI, masquée sans jamais montrer la nouvelle image nette", rv.asv === "mask" && rv.sharp === 0 && rv.frames > 3, JSON.stringify(rv));
 // Même score que ml/score.py (référence Python) : même modèle, même prétraitement.
 if (extId) { const ref = { "QdBZY2fkU-0": 0.9999, "VQRLujxTm3c": 0.9986, "ynlPxpaxpIc": 0.7968, "hvoD7ehZPcM": 0.9192, "eaW0tYpxyp0": 0.0001, "Rv7xLt5yNsM": 0.0008, "dQw4w9WgXcQ": 0.0026, "jNQXAC9IVRw": 0.0424 };
   const pp = await ctx.newPage(); await pp.goto("chrome-extension://" + extId + "/popup.html");

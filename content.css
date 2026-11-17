@@ -19,7 +19,8 @@
 [data-asv-peek=all] [data-asv=mask]::before,[data-asv-peek=all] [data-asv=mask]::after{content:none}
 [data-asv=mask][data-asv-peek]::before{content:"Aperçu · clic pour garder";inset:auto 8px 8px auto;display:block;padding:4px 9px;border-radius:999px;background:#f7e4c8;box-shadow:0 0 0 1px #efc3a4;font:600 12px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;font-style:normal;color:#8a2357}
 [data-asv=hide]{display:none!important}
-/* Miniature en attente du verdict du modèle d'image : floutée, jamais nette avant d'être jugée sûre. */
+/* Miniature en attente du verdict du modèle d'image : floutée, jamais nette avant d'être jugée sûre.
+   La garde par défaut (toute miniature non marquée ok) est posée par content.js dès document_start, sélecteurs par site. */
 img[data-asv-img=wait],video[data-asv-img=wait]{filter:blur(18px) saturate(.5)!important;clip-path:inset(0)!important}
 /* Prévisualisation YouTube au-dessus d'une carte masquée sans aperçu. */
 html[data-asv-cover] ytd-app #video-preview{visibility:hidden!important}

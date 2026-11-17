@@ -57,20 +57,23 @@
       out[off + i] = rgb[p] / 255; out[off + n + i] = rgb[p + 1] / 255; out[off + 2 * n + i] = rgb[p + 2] / 255;
     }
   }
+  function roundEven(v) { var f = Math.floor(v), d = v - f; return d > 0.5 || (d === 0.5 && f % 2) ? f + 1 : f; } // round() de Python
   function pixels(bmp) {
     var c = new OffscreenCanvas(bmp.width, bmp.height), g = c.getContext("2d", { willReadFrequently: true });
     g.drawImage(bmp, 0, 0); return g.getImageData(0, 0, bmp.width, bmp.height).data;
   }
 
   function judge(url) {
-    return load().then(function () { return fetch(url, { credentials: "omit" }); })
+    var ac = new AbortController(), timer = setTimeout(function () { ac.abort(); }, 8000); // un CDN bloqué ne gèle pas la file
+    return load().then(function () { return fetch(url, { credentials: "omit", signal: ac.signal }); })
+      .finally(function () { clearTimeout(timer); })
       .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.blob(); })
       .then(createImageBitmap)
       .then(function (bmp) {
         var w = bmp.width, h = bmp.height, px = pixels(bmp), x = new Float32Array(2 * 3 * S * S);
         bmp.close();
         // Recadrage central : bord court à 256 puis découpe au centre, comme ml/embed.py.
-        var s = S / Math.min(w, h), rw = Math.max(S, Math.round(w * s)), rh = Math.max(S, Math.round(h * s));
+        var s = S / Math.min(w, h), rw = Math.max(S, roundEven(w * s)), rh = Math.max(S, roundEven(h * s));
         toCHW(resize(px, w, h, rw, rh), rw, (rw - S) >> 1, (rh - S) >> 1, x, 0);
         toCHW(resize(px, w, h, S, S), S, 0, 0, x, 3 * S * S); // image entière écrasée
         var feeds = {}; feeds[session.inputNames[0]] = new ort.Tensor("float32", x, [2, 3, S, S]);
