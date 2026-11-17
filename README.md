@@ -27,4 +27,6 @@ Une page entière sur GTA VI (vidéo YouTube, tweet, article) est remplacée par
 ## Limites
 - Discord : seulement sur discord.com dans le navigateur. L'appli Discord installée n'accepte pas d'extensions.
 - Les applis mobiles (YouTube, X, TikTok) ne sont pas couvertes.
-- Une image sans texte autour (un meme sans légende) ne peut pas être détectée.
+- Images : un modèle local (MobileCLIP-S0 + une petite tête entraînée sur GTA VI) juge les miniatures et médias des sites de la liste. Il en repère environ 6 sur 10 sans aucun texte, et se trompe parfois sur des vlogs de Miami (même esthétique) ou un logo d'un autre GTA. Survoler suffit à vérifier. Désactivable dans la popup (« Analyser les images »).
+- Firefox : pas de modèle d'image (l'API offscreen n'existe pas), seul le texte est filtré.
+- Une image hors des sites de la liste n'est pas analysée.

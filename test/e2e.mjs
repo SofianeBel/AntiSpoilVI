@@ -141,5 +141,29 @@ const inner = await yt.evaluate(() => new Promise((res) => { const v = document.
 ok("youtube grille : carte imbriquée recyclée pendant l'aperçu, remasquée", inner.was && !inner.peek && inner.vis === "hidden", JSON.stringify(inner));
 await yt.mouse.move(5, 300); await yt.waitForTimeout(60);
 ok("youtube grille : remasquée à la sortie", await yt.evaluate(() => getComputedStyle(document.querySelector("#v2 #video-title")).visibility === "hidden"));
+// Modèle d'image : vraies miniatures, aucun titre ne parle de GTA. Réseau requis (i.ytimg.com).
+const imgPage = '<!doctype html><meta charset="utf-8"><title>Accueil - YouTube</title><style>body{margin:0;font:14px system-ui}ytd-rich-item-renderer{display:block;width:360px;margin:8px;float:left}img{display:block;width:360px;height:202px}</style>' +
+  [["QdBZY2fkU-0", "Le trailer le plus vu de l'année"], ["Rv7xLt5yNsM", "Mon nouveau jeu de voiture"], ["dQw4w9WgXcQ", "Un classique des années 80"]]
+  .map((v, i) => '<ytd-rich-item-renderer id="i' + i + '"><a href="/watch?v=' + v[0] + '"><img src="https://i.ytimg.com/vi/' + v[0] + '/hqdefault.jpg"></a><a id="video-title" href="/watch?v=' + v[0] + '">' + v[1] + '</a></ytd-rich-item-renderer>').join("");
+const im = await ctx.newPage(); await im.route("https://www.youtube.com/**", (r) => r.fulfill({ contentType: "text/html; charset=utf-8", body: imgPage }));
+// Échantillonneur posé avant tout script : compte les frames où la miniature GTA VI est chargée, nette et pas masquée.
+await im.addInitScript(() => { window.__sharp = 0; window.__frames = 0; (function f() { const c = document.getElementById("i0"), m = c && c.querySelector("img");
+  if (m) { window.__frames++; if (m.complete && m.naturalWidth && m.getAttribute("data-asv-img") !== "wait" && c.getAttribute("data-asv") !== "mask") window.__sharp++; }
+  requestAnimationFrame(f); })(); });
+const t0 = Date.now(); await im.goto("https://www.youtube.com/");
+await im.waitForFunction(() => document.getElementById("i0").getAttribute("data-asv") === "mask" && !document.querySelector("[data-asv-img=wait]"), null, { timeout: 30000 }).catch(() => {});
+const iv = await im.evaluate(() => ({ s: [0, 1, 2].map((i) => document.getElementById("i" + i).getAttribute("data-asv")), wait: document.querySelectorAll("[data-asv-img=wait]").length, sharp: window.__sharp, frames: window.__frames }));
+ok("images : miniature GTA VI sans mot-clé masquée", iv.s[0] === "mask", JSON.stringify(iv) + " " + (Date.now() - t0) + " ms");
+ok("images : miniatures sans rapport pas masquées ni floutées", !iv.s[1] && !iv.s[2] && iv.wait === 0, JSON.stringify(iv));
+ok("images : la miniature GTA VI n'est jamais nette avant le verdict", iv.sharp === 0 && iv.frames > 10, iv.sharp + "/" + iv.frames + " frames nettes");
+await im.screenshot({ path: path.join(shots, "images.png") });
+// Même score que ml/score.py (référence Python) : même modèle, même prétraitement.
+if (extId) { const ref = { "QdBZY2fkU-0": 0.9999, "VQRLujxTm3c": 0.9986, "ynlPxpaxpIc": 0.7968, "hvoD7ehZPcM": 0.9192, "eaW0tYpxyp0": 0.0001, "Rv7xLt5yNsM": 0.0008, "dQw4w9WgXcQ": 0.0026, "jNQXAC9IVRw": 0.0424 };
+  const pp = await ctx.newPage(); await pp.goto("chrome-extension://" + extId + "/popup.html");
+  const got = await pp.evaluate((ids) => Promise.all(ids.map((id) => new Promise((r) => chrome.runtime.sendMessage({ t: "asv-img", url: "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg" }, (x) => r([id, x && x.score]))))), Object.keys(ref));
+  const diff = Math.max(...got.map(([id, s]) => s === null ? 9 : Math.abs(s - ref[id])));
+  ok("images : scores JS = référence Python (écart max < 0,05)", diff < 0.05, got.map(([id, s]) => id + "=" + (s === null ? "null" : s.toFixed(4))).join(" ") + " écart " + diff.toFixed(4));
+  const speed = await pp.evaluate(() => new Promise((r) => { const t = performance.now(); chrome.runtime.sendMessage({ t: "asv-img", url: "https://i.ytimg.com/vi/8L0CzL2V72c/hqdefault.jpg?n=" + Math.random() }, () => r(performance.now() - t)); }));
+  results.push("INFO images : une miniature jugée en " + Math.round(speed) + " ms (téléchargement compris)"); }
 console.log(results.join("\n")); console.log("shots: " + shots);
 await ctx.close(); srv.close(); process.exit(results.some((r) => r.startsWith("FAIL")) ? 1 : 0);

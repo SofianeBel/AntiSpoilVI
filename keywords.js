@@ -5,7 +5,8 @@ var ASV_DEFAULTS = {
   strict: false,         // ajoute Rockstar, Take-Two, etc. (plus de faux positifs)
   until: "",             // date AAAA-MM-JJ après laquelle le filtre se coupe tout seul
   extra: "",             // mots-clés perso, un par ligne
-  allow: ""              // sites jamais filtrés, un par ligne
+  allow: "",             // sites jamais filtrés, un par ligne
+  images: true           // juge aussi les miniatures avec le modèle d'image local
 };
 
 var ASV_KEYWORDS = [

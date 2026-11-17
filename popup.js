@@ -1,4 +1,4 @@
-var ids = ["enabled", "mode", "strict", "until", "extra", "allow"];
+var ids = ["enabled", "mode", "strict", "images", "until", "extra", "allow"];
 function showState(on) {
   document.body.classList.toggle("off", !on);
   document.getElementById("state").textContent = on ? "Protection activée" : "Protection coupée";

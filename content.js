@@ -8,24 +8,26 @@
       // Lecteur de prévisualisation posé par-dessus la miniature, hors de la carte : il fait partie de l'aperçu.
       overlay: "ytd-app #video-preview",
       // Grilles : la carte et son contenu sont masqués tous les deux, l'aperçu vise la carte entière.
-      nest: true },
+      nest: true, img: /^https:\/\/i9?\.ytimg\.com\/(vi|vi_webp)\// },
     // skip : zones lues nulle part. Le nom, le @ et "a reposté" d'un compte "GTA 6 News" masquaient tout ce qu'il retweete.
     { re: /(^|\.)(x|twitter)\.com$/, sel: "article,[data-testid=trend],[data-testid=UserCell],[data-testid=typeaheadResult]", page: /\/status\//,
       skip: "article [data-testid=User-Name],article [data-testid=socialContext],article [data-testid=Tweet-User-Avatar]",
       // Titre d'un tweet : 'Nom on X: "texte" / X'. Seul le texte entre guillemets compte, pas le nom.
-      title: function (t) { return / \/ X$/.test(t) ? t.replace(/^[\s\S]*? X\s?:\s?["«“]/, "") : t; } },
-    { re: /(^|\.)reddit\.com$/, sel: "shreddit-post,shreddit-comment,article,[data-testid=post-container],faceplate-tracker[noun=trending_search],reddit-recent-pages li", page: /\/comments\// },
-    { re: /(^|\.)discord\.com$/, sel: "li[id^=chat-messages-],[data-list-item-id^=channels___],[data-list-item-id^=guildsnav___],[class*=threadSidebar] li,[class*=searchResult]", page: null },
-    { re: /(^|\.)tiktok\.com$/, sel: "[data-e2e=recommend-list-item-container],[data-e2e=search_top-item],[data-e2e=search_video-item],[data-e2e=comment-level-1],[data-e2e=user-post-item],article", page: /\/video\// },
-    { re: /(^|\.)twitch\.tv$/, sel: "article,[data-a-target=card],.chat-line__message", page: null },
-    { re: /(^|\.)instagram\.com$/, sel: "article,[role=button]:has(img)", page: null },
-    { re: /(^|\.)google\.[a-z.]+$/, sel: ".MjjYud,.g,g-inner-card,.WlydOe,[data-attrid=title]", page: null }
+      title: function (t) { return / \/ X$/.test(t) ? t.replace(/^[\s\S]*? X\s?:\s?["«“]/, "") : t; },
+      img: /^https:\/\/pbs\.twimg\.com\/(media|ext_tw_video_thumb|amplify_video_thumb|tweet_video_thumb|card_img)\// },
+    { re: /(^|\.)reddit\.com$/, sel: "shreddit-post,shreddit-comment,article,[data-testid=post-container],faceplate-tracker[noun=trending_search],reddit-recent-pages li", page: /\/comments\//, img: /^https:\/\/(i|preview|external-preview)\.redd\.it\// },
+    { re: /(^|\.)discord\.com$/, sel: "li[id^=chat-messages-],[data-list-item-id^=channels___],[data-list-item-id^=guildsnav___],[class*=threadSidebar] li,[class*=searchResult]", page: null, img: /^https:\/\/(media\.discordapp\.net|cdn\.discordapp\.com)\/attachments\// },
+    { re: /(^|\.)tiktok\.com$/, sel: "[data-e2e=recommend-list-item-container],[data-e2e=search_top-item],[data-e2e=search_video-item],[data-e2e=comment-level-1],[data-e2e=user-post-item],article", page: /\/video\//, img: /^https:\/\/[^/]+\.tiktokcdn(-us)?\.com\// },
+    { re: /(^|\.)twitch\.tv$/, sel: "article,[data-a-target=card],.chat-line__message", page: null, img: /^https:\/\/static-cdn\.jtvnw\.net\/(cf_vods|previews-ttv|s3_vods)\// },
+    { re: /(^|\.)instagram\.com$/, sel: "article,[role=button]:has(img)", page: null, img: /^https:\/\/[^/]+\.cdninstagram\.com\// },
+    { re: /(^|\.)google\.[a-z.]+$/, sel: ".MjjYud,.g,g-inner-card,.WlydOe,[data-attrid=title]", page: null, img: /^https:\/\/encrypted-tbn0\.gstatic\.com\/images/ }
   ];
   var site = SITES.filter(function (s) { return s.re.test(host); })[0];
   var SEL = site ? site.sel : "article";
   var SKIP = site && site.skip || null;
   var OVERLAY = site && site.overlay || null;
   var NEST = !!(site && site.nest);
+  var IMG = site && site.img || null;   // miniatures et médias jugés par le modèle d'image (pas les avatars)
 
   var settings = null, rx = null, active = false;
   var seen = new WeakMap();      // élément -> texte déjà analysé
@@ -37,6 +39,9 @@
   var lost = new Set();          // blocs masqués dont un site a retiré l'attribut
   var peekTimer = null, peekEl = null, hoverNode = null, hoverX = 0, hoverY = 0;
   var PEEK_DELAY = 350;
+  var verdict = new Map();       // url d'image -> score du modèle (null : pas jugeable)
+  var asked = new Map();         // url en cours de jugement -> images qui l'attendent
+  var imgThreshold = 0.87;       // remplacé par celui de model/head.json à la première réponse
   var toSize = [];               // blocs fraîchement masqués dont on mesure la hauteur en une passe          // un passage de souris en scrollant ne doit pas spoiler
 
   function isActive(s) {
@@ -96,12 +101,52 @@
 
   function check(el) {
     if (!el.isConnected) return;
-    var t = textOf(el);
-    if (seen.get(el) === t) return;
-    seen.set(el, t);
-    var id = rx.test(t) ? identity(el) : null;
-    if (id !== null && revealed.get(el) !== id) mask(el, id);
+    var t = textOf(el), imgs = mediaOf(el), key = t + "\n" + imgs.map(srcOf).join(" ");
+    if (seen.get(el) === key) return;
+    seen.set(el, key);
+    var hit = rx.test(t), id = identity(el);
+    if (!hit && imgs.length && revealed.get(el) !== id) hit = judgeImages(imgs);
+    else imgs.forEach(clearWait); // déjà masquée par le texte, ou affichée volontairement : rien à juger
+    if (hit && revealed.get(el) !== id) mask(el, id);
     else unmask(el); // YouTube et X recyclent leurs cartes : on démasque si le contenu a changé.
+  }
+
+  // Images de la carte que le modèle sait juger. Lu dans la carte seulement, jamais dans toute la page.
+  function mediaOf(el) {
+    if (!IMG || !settings.images) return [];
+    var out = [], list = el.querySelectorAll("img,video[poster]");
+    for (var i = 0; i < list.length && out.length < 6; i++) if (IMG.test(srcOf(list[i]))) out.push(list[i]);
+    return out;
+  }
+  function srcOf(m) { return m.tagName === "VIDEO" ? m.poster : (m.currentSrc || m.src || ""); }
+  function clearWait(m) { if (m.hasAttribute("data-asv-img")) m.removeAttribute("data-asv-img"); }
+
+  // Une image déjà jugée GTA VI masque la carte ; une image pas encore jugée reste floutée jusqu'au verdict.
+  function judgeImages(imgs) {
+    var hit = false;
+    imgs.forEach(function (m) {
+      var u = srcOf(m);
+      if (verdict.has(u)) { clearWait(m); if (verdict.get(u) !== null && verdict.get(u) >= imgThreshold) hit = true; return; }
+      if (m.getAttribute("data-asv-img") !== "wait") m.setAttribute("data-asv-img", "wait");
+      ask(u, m);
+    });
+    return hit;
+  }
+  function ask(u, m) {
+    if (asked.has(u)) { asked.get(u).add(m); return; }
+    asked.set(u, new Set([m]));
+    var done = function (r) {
+      if (r && r.threshold) imgThreshold = r.threshold;
+      verdict.set(u, r ? r.score : null);
+      if (verdict.size > 3000) verdict.delete(verdict.keys().next().value);
+      var waiting = asked.get(u); asked.delete(u);
+      if (!active) return;
+      // La carte est rejugée dans le prochain rAF, avant le rendu : masque ou défloutage, jamais l'image nette d'abord.
+      waiting.forEach(function (img) { var c = img.isConnected && img.closest(SEL); if (c) { seen.delete(c); pending.add(c); } else clearWait(img); });
+      schedule();
+    };
+    try { chrome.runtime.sendMessage({ t: "asv-img", url: u }, function (r) { void chrome.runtime.lastError; done(r); }); }
+    catch (e) { done(null); } // extension rechargée : le contexte n'existe plus
   }
 
   // Filet de sécurité : un bloc masqué qui a perdu son attribut le retrouve avant le rendu.
@@ -280,8 +325,9 @@
     endPeek();
     lost.clear();
     document.querySelectorAll("[data-asv]").forEach(unmask);
+    document.querySelectorAll("[data-asv-img]").forEach(clearWait);
     if (!active) { closeWall(); if (was) mo.disconnect(); return; }
-    if (!was) mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["title", "aria-label", "alt", "data-asv"], attributeOldValue: false });
+    if (!was) mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["title", "aria-label", "alt", "data-asv", "src", "poster"], attributeOldValue: false });
     theme();
     fullScan = true; schedule();
   }

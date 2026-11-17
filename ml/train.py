@@ -47,8 +47,9 @@ fps = np.argsort(-(oof * (y == 0)))[:12]; fns = np.argsort(oof + (y == 0) * 9)[:
 print("\npires faux positifs :"); [print(f"  {oof[i]:.3f} {p[i]}") for i in fps]
 print("pires faux négatifs :"); [print(f"  {oof[i]:.3f} {p[i]}") for i in fns]
 m = MLPClassifier((256,), alpha=1e-3, max_iter=400, early_stopping=True, random_state=0).fit(X, y)
-(HERE.parent / "model" / "head.json").write_text(json.dumps({"w1": np.round(m.coefs_[0], 5).tolist(), "b1": np.round(m.intercepts_[0], 5).tolist(),
-    "w2": np.round(m.coefs_[1][:, 0], 5).tolist(), "b2": round(float(m.intercepts_[1][0]), 5), "threshold": round(float(t), 3),
-    "cv": {"precision": round(float(pr), 4), "recall": round(float(rc), 4), "n": int(len(y))}}))
-print("model/head.json écrit")
+# Tête en float32 brut pour l'extension : W1 (1024x256, ligne par ligne), b1 (256), w2 (256), b2 (1).
+np.concatenate([m.coefs_[0].ravel(), m.intercepts_[0], m.coefs_[1][:, 0], m.intercepts_[1]]).astype("<f4").tofile(HERE.parent / "model" / "head.bin")
+(HERE.parent / "model" / "head.json").write_text(json.dumps({"dim": int(X.shape[1]), "hidden": int(m.coefs_[0].shape[1]), "threshold": round(float(t), 3),
+    "cv_thumbs": {"precision": round(float(pr), 4), "recall": round(float(rc), 4)}, "n": int(len(y))}, indent=1))
+print("model/head.bin et model/head.json écrits")
 if failed: raise SystemExit(1)
