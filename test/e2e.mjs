@@ -97,6 +97,10 @@ const ys = () => yt.evaluate(() => { const c = document.getElementById("v0"), p 
   return { asv: c.getAttribute("data-asv"), peek: c.hasAttribute("data-asv-peek"), prv: getComputedStyle(p).display !== "none" && getComputedStyle(p).visibility === "visible" }; });
 ok("youtube : vidéo GTA masquée", (await ys()).asv === "mask");
 ok("youtube : vidéo sans rapport pas masquée", !(await yt.evaluate(() => document.getElementById("v1").getAttribute("data-asv"))));
+// Une vidéo normale garde sa prévisualisation, dès le chargement.
+const n1 = await yt.locator("#v1 .thumb").boundingBox(); await yt.mouse.move(n1.x + 60, n1.y + 60); await yt.waitForTimeout(100);
+ok("youtube : prévisualisation d'une vidéo normale visible", (await ys()).prv, JSON.stringify(await ys()));
+await yt.mouse.move(n1.x + 600, n1.y + 60); await yt.waitForTimeout(50);
 const tb = await yt.locator("#v0 .thumb").boundingBox();
 await yt.mouse.move(tb.x + 60, tb.y + 60); await yt.waitForTimeout(150);
 let y = await ys(); ok("youtube : survol bref, ni aperçu ni prévisualisation", !y.peek && !y.prv, JSON.stringify(y));
@@ -116,5 +120,19 @@ y = await ys(); ok("youtube : prévisualisation cachée sur une carte masquée s
 await yt.waitForTimeout(500); await yt.mouse.move(tb.x + 70, tb.y + 70); await yt.waitForTimeout(100);
 await yt.mouse.click(tb.x + 80, tb.y + 80); await yt.waitForTimeout(150);
 y = await ys(); ok("youtube : clic sur la prévisualisation pendant l'aperçu, affiché pour de bon sans quitter la page", !y.asv && yt.url().includes("/results"), JSON.stringify(y) + " " + yt.url());
+// Carte affichée puis recyclée en un autre spoil, lecteur toujours sous la souris : le lecteur est recaché avant le rendu.
+const rec = await yt.evaluate(() => new Promise((res) => { const c = document.getElementById("v0"); c.querySelectorAll("a").forEach((a) => a.href = "/watch?v=gta2"); c.querySelector("#video-title").textContent = "GTA 6 : la carte de Leonida";
+  requestAnimationFrame(() => requestAnimationFrame(() => res({ asv: c.getAttribute("data-asv"), vis: getComputedStyle(document.getElementById("video-preview")).visibility }))); }));
+ok("youtube : carte recyclée en spoil sous le lecteur, lecteur caché", rec.asv === "mask" && rec.vis === "hidden", JSON.stringify(rec));
+// Grille : carte masquée dans une carte masquée, l'aperçu doit tenir et tout montrer.
+await yt.mouse.move(5, 300); await yt.waitForTimeout(50);
+const gb = await yt.locator("#v2 .thumb").boundingBox(); await yt.mouse.move(gb.x + 60, gb.y + 60); await yt.waitForTimeout(450); await yt.mouse.move(gb.x + 70, gb.y + 70);
+const gh = await yt.evaluate(() => new Promise((res) => { let n = 0, off = 0; const end = performance.now() + 1200;
+  (function f() { n++; const g = document.getElementById("g2"), t = document.querySelector("#v2 #video-title");
+    if (!g.hasAttribute("data-asv-peek") || getComputedStyle(t).visibility !== "visible") off++; if (performance.now() < end) requestAnimationFrame(f); else res({ n, off }); })(); }));
+ok("youtube grille : l'aperçu tient et montre la carte imbriquée", gh.off === 0, JSON.stringify(gh));
+await yt.screenshot({ path: path.join(shots, "yt-grid-peek.png") });
+await yt.mouse.move(5, 300); await yt.waitForTimeout(60);
+ok("youtube grille : remasquée à la sortie", await yt.evaluate(() => getComputedStyle(document.querySelector("#v2 #video-title")).visibility === "hidden"));
 console.log(results.join("\n")); console.log("shots: " + shots);
 await ctx.close(); srv.close(); process.exit(results.some((r) => r.startsWith("FAIL")) ? 1 : 0);

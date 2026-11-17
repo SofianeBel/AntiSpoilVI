@@ -32,7 +32,7 @@
   var maskedEls = new WeakSet(); // blocs masqués (WeakSet : une carte retirée du fil est libérée)
   var maskedId = new WeakMap();  // bloc masqué -> identité au moment du masque
   var lost = new Set();          // blocs masqués dont un site a retiré l'attribut
-  var peekTimer = null, peekEl = null;
+  var peekTimer = null, peekEl = null, hoverNode = null;
   var PEEK_DELAY = 350;
   var toSize = [];               // blocs fraîchement masqués dont on mesure la hauteur en une passe          // un passage de souris en scrollant ne doit pas spoiler
 
@@ -77,6 +77,7 @@
     maskedId.set(el, id);
     if (!el.hasAttribute("tabindex")) { el.setAttribute("tabindex", "0"); el.setAttribute("data-asv-tab", ""); }
     if (el.getAttribute("data-asv") !== settings.mode) el.setAttribute("data-asv", settings.mode);
+    syncCover();
   }
   function unmask(el) {
     maskedEls.delete(el);
@@ -84,6 +85,7 @@
     if (el.hasAttribute("data-asv")) el.removeAttribute("data-asv");
     el.removeAttribute("data-asv-peek");
     el.removeAttribute("data-asv-size");
+    syncCover();
     if (el.hasAttribute("data-asv-tab")) { el.removeAttribute("tabindex"); el.removeAttribute("data-asv-tab"); }
   }
 
@@ -203,26 +205,37 @@
   function endPeek() {
     clearTimeout(peekTimer); peekTimer = null;
     if (peekEl) { peekEl.removeAttribute("data-asv-peek"); peekEl = null; }
-    cover(true);
+    syncCover();
   }
-  function maskedFrom(node) { return node && node.closest ? node.closest("[data-asv=mask]") : null; }
+  // Le bloc masqué le plus externe : sur les grilles YouTube, la carte et son contenu sont masqués tous les deux.
+  function maskedFrom(node) {
+    var m = node && node.closest ? node.closest("[data-asv=mask]") : null, up;
+    while (m && m.parentElement && (up = m.parentElement.closest("[data-asv=mask]"))) m = up;
+    return m;
+  }
   function inOverlay(node) { return !!(OVERLAY && node && node.closest && node.closest(OVERLAY)); }
-  // Tant que la carte survolée est masquée sans aperçu, la prévisualisation est cachée : sinon YouTube lit la vidéo par-dessus le masque.
-  function cover(on) {
+  // Ce qu'il y a sous la prévisualisation : c'est la carte d'en dessous qui décide, pas celle d'où vient la souris.
+  function under(e) {
+    var list = document.elementsFromPoint(e.clientX, e.clientY);
+    for (var i = 0; i < list.length; i++) if (!inOverlay(list[i])) return list[i];
+    return null;
+  }
+  // Tant que la carte sous la souris est masquée sans aperçu, la prévisualisation est cachée : sinon YouTube lit la vidéo par-dessus le masque.
+  function syncCover() {
     if (!OVERLAY) return;
+    var m = active && maskedFrom(hoverNode), on = !!m && !m.hasAttribute("data-asv-peek");
     var d = document.documentElement;
     if (on !== d.hasAttribute("data-asv-cover")) { if (on) d.setAttribute("data-asv-cover", ""); else d.removeAttribute("data-asv-cover"); }
   }
   document.addEventListener("pointerover", function (e) {
     if (e.pointerType === "touch") return;
-    if (inOverlay(e.target)) return; // la prévisualisation garde l'état de la carte d'où vient la souris
-    var el = maskedFrom(e.target);
-    if (el === peekEl) return;
+    hoverNode = inOverlay(e.target) ? under(e) : e.target;
+    var el = maskedFrom(hoverNode);
+    if (el === peekEl) { syncCover(); return; }
     endPeek();
-    cover(!!el);
     if (!el) return;
     peekEl = el;
-    peekTimer = setTimeout(function () { if (peekEl === el) { el.setAttribute("data-asv-peek", ""); cover(false); } }, PEEK_DELAY);
+    peekTimer = setTimeout(function () { if (peekEl === el) { el.setAttribute("data-asv-peek", ""); syncCover(); } }, PEEK_DELAY);
   }, true);
   document.addEventListener("pointerout", function (e) {
     var to = e.relatedTarget;
@@ -244,7 +257,6 @@
     var list = [el].concat([].slice.call(el.querySelectorAll("[data-asv=mask]")));
     for (var p = el.parentElement; p; p = p.parentElement) if (p.getAttribute("data-asv") === "mask") list.push(p);
     list.forEach(function (x) { revealed.set(x, identity(x)); unmask(x); });
-    cover(false);
   }
   document.addEventListener("click", onReveal, true);
   document.addEventListener("keydown", onReveal, true);

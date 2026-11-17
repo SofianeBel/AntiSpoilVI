@@ -1,14 +1,16 @@
 <!doctype html><html><head><meta charset="utf-8"><title>gta 6 - YouTube</title><style>
 body{margin:0;background:#fff;color:#0f0f0f;font:14px/1.4 system-ui,sans-serif}
-ytd-video-renderer{display:flex;gap:16px;padding:12px;width:900px}
+ytd-video-renderer,yt-lockup-view-model{display:flex;gap:16px;padding:12px;width:900px}
 .thumb{display:block;width:360px;height:202px;border-radius:12px;background:#c86;flex:none}
 #video-preview{position:absolute;display:none}
 #video-preview video{display:block;width:360px;height:202px;background:#a33;border-radius:12px}
 </style></head><body><ytd-app><div id="contents"></div><div id="video-preview"><ytd-video-preview><a href="/watch?v=gta"><video muted></video></a></ytd-video-preview></div></ytd-app><script>
-var vids=[["/watch?v=gta","Trailer GTA 6 : Vice City en 4K"],["/watch?v=cat","Mon chat fait du piano"]];
+var vids=[["/watch?v=gta","Trailer GTA 6 : Vice City en 4K"],["/watch?v=cat","Mon chat fait du piano"],["/watch?v=grid","GTA 6 : Jason et Lucia en cavale",1]];
 var c=document.getElementById('contents'),prv=document.getElementById('video-preview');
-vids.forEach(function(v,i){var r=document.createElement('ytd-video-renderer');r.id='v'+i;
-r.innerHTML='<a class="thumb" href="'+v[0]+'"><img alt="" width="1" height="1"></a><div><a id="video-title" href="'+v[0]+'">'+v[1]+'</a><p>12 k vues</p></div>';c.appendChild(r);
+vids.forEach(function(v,i){var r=document.createElement(v[2]?'yt-lockup-view-model':'ytd-video-renderer');r.id='v'+i;
+r.innerHTML='<a class="thumb" href="'+v[0]+'"><img alt="" width="1" height="1"></a><div><a id="video-title" href="'+v[0]+'">'+v[1]+'</a><p>12 k vues</p></div>';
+// grille : la carte est emballée dans ytd-rich-item-renderer, les deux sont masquées
+if(v[2]){var g=document.createElement('ytd-rich-item-renderer');g.id='g'+i;g.style.cssText='display:block;width:900px';g.appendChild(r);c.appendChild(g);}else c.appendChild(r);
 // imite YouTube : survoler la miniature (seulement si elle est visible) pose le lecteur de prévisualisation par-dessus, hors de la carte
 var t=r.querySelector('.thumb');t.addEventListener('pointerenter',function(){var b=t.getBoundingClientRect();prv.style.cssText='display:block;left:'+(b.left+scrollX)+'px;top:'+(b.top+scrollY)+'px';prv.querySelector('a').href=v[0];});});
 prv.addEventListener('pointerleave',function(){prv.style.display='none';});
