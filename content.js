@@ -8,7 +8,7 @@
       // Lecteur de prévisualisation posé par-dessus la miniature, hors de la carte : il fait partie de l'aperçu.
       overlay: "ytd-app #video-preview",
       // Grilles : la carte et son contenu sont masqués tous les deux, l'aperçu vise la carte entière.
-      nest: true, img: ["https://i.ytimg.com/vi/", "https://i.ytimg.com/vi_webp/", "https://i9.ytimg.com/vi/"] },
+      nest: true, img: ["https://i.ytimg.com/vi/", "https://i.ytimg.com/vi_webp/", "https://i9.ytimg.com/vi/", "https://i9.ytimg.com/vi_webp/"] },
     // skip : zones lues nulle part. Le nom, le @ et "a reposté" d'un compte "GTA 6 News" masquaient tout ce qu'il retweete.
     { re: /(^|\.)(x|twitter)\.com$/, sel: "article,[data-testid=trend],[data-testid=UserCell],[data-testid=typeaheadResult]", page: /\/status\//,
       skip: "article [data-testid=User-Name],article [data-testid=socialContext],article [data-testid=Tweet-User-Avatar]",
@@ -132,11 +132,19 @@
   function mediaOf(el) {
     if (!PREFIX || !settings.images) return [];
     var out = [], list = el.querySelectorAll("img,video[poster]");
-    for (var i = 0; i < list.length; i++) if (judgeable(srcOf(list[i]))) out.push(list[i]);
+    for (var i = 0; i < list.length; i++) if (urlsOf(list[i]).length) out.push(list[i]);
     return out;
   }
-  // L'attribut src, pas currentSrc : au moment de la mutation currentSrc vaut encore l'ancienne image.
-  function srcOf(m) { return m.tagName === "VIDEO" ? m.poster : (m.getAttribute("src") ? m.src : ""); }
+  // Toutes les URL qu'une image peut afficher : src (à jour dès la mutation) et currentSrc (choisie par srcset/<picture>,
+  // à jour seulement au chargement, d'où l'écoute de "load" plus bas). Chacune doit être jugée sûre.
+  function urlsOf(m) {
+    if (m.tagName === "VIDEO") return judgeable(m.poster) ? [m.poster] : [];
+    var a = m.getAttribute("src") ? m.src : "", b = m.currentSrc || "", out = [];
+    if (judgeable(a)) out.push(a);
+    if (b !== a && judgeable(b)) out.push(b);
+    return out;
+  }
+  function srcOf(m) { return urlsOf(m).join(" "); }
   // "ok" n'est valable que pour l'URL notée dans data-asv-ok : si src change, check() repasse l'image en attente
   // dans le rAF qui suit la mutation, avant que la nouvelle image puisse s'afficher.
   function clearWait(m) { var u = srcOf(m); if (m.getAttribute("data-asv-img") !== "ok") m.setAttribute("data-asv-img", "ok"); if (m.getAttribute("data-asv-ok") !== u) m.setAttribute("data-asv-ok", u); }
@@ -145,10 +153,10 @@
   function judgeImages(imgs) {
     var hit = false;
     imgs.forEach(function (m) {
-      var u = srcOf(m);
-      if (verdict.has(u)) { clearWait(m); if (verdict.get(u) >= imgThreshold) hit = true; return; }
-      if (m.getAttribute("data-asv-img") !== "wait") m.setAttribute("data-asv-img", "wait");
-      ask(u, m);
+      var us = urlsOf(m), known = true;
+      us.forEach(function (u) { if (!verdict.has(u)) { known = false; ask(u, m); } else if (verdict.get(u) >= imgThreshold) hit = true; });
+      if (known) clearWait(m);
+      else if (m.getAttribute("data-asv-img") !== "wait") m.setAttribute("data-asv-img", "wait");
     });
     return hit;
   }
@@ -339,6 +347,14 @@
     for (var p = el.parentElement; p; p = p.parentElement) if (p.getAttribute("data-asv") === "mask") list.push(p);
     list.forEach(function (x) { revealed.set(x, identity(x)); unmask(x); });
   }
+  // srcset/<picture> : l'image réellement affichée n'est connue qu'au chargement. On rejuge la carte avant le rendu.
+  document.addEventListener("load", function (e) {
+    var m = e.target;
+    if (!active || !PREFIX || m.tagName !== "IMG") return;
+    var u = srcOf(m);
+    if (!u || m.getAttribute("data-asv-ok") === u) return;
+    var c = m.closest(SEL); if (c) { seen.delete(c); pending.add(c); schedule(); }
+  }, true);
   document.addEventListener("click", onReveal, true);
   document.addEventListener("keydown", onReveal, true);
   document.addEventListener("play", pauseMedia, true);
@@ -353,6 +369,7 @@
     lost.clear();
     document.querySelectorAll("[data-asv]").forEach(unmask);
     setGuard(active && settings.images);
+    if (!(active && settings.images)) document.querySelectorAll("[data-asv-img]").forEach(function (m) { m.removeAttribute("data-asv-img"); m.removeAttribute("data-asv-ok"); });
     if (!active) { closeWall(); if (was) mo.disconnect(); return; }
     if (!was) mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["title", "aria-label", "alt", "data-asv", "src", "srcset", "poster"], attributeOldValue: false });
     theme();

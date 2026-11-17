@@ -64,10 +64,13 @@
   }
 
   function judge(url) {
-    var ac = new AbortController(), timer = setTimeout(function () { ac.abort(); }, 8000); // un CDN bloqué ne gèle pas la file
-    return load().then(function () { return fetch(url, { credentials: "omit", signal: ac.signal }); })
-      .finally(function () { clearTimeout(timer); })
+    var ac = new AbortController(), timer = null;
+    return load().then(function () {
+      timer = setTimeout(function () { ac.abort(); }, 8000); // un CDN bloqué (en-têtes ou corps) ne gèle pas la file
+      return fetch(url, { credentials: "omit", signal: ac.signal });
+    })
       .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.blob(); })
+      .finally(function () { clearTimeout(timer); })
       .then(createImageBitmap)
       .then(function (bmp) {
         var w = bmp.width, h = bmp.height, px = pixels(bmp), x = new Float32Array(2 * 3 * S * S);
