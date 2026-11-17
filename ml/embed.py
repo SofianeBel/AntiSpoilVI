@@ -1,11 +1,12 @@
 """Embeddings MobileCLIP-S0 (le même ONNX fp32 que l'extension ; l'int8 est 18x plus lent sur CPU) de toutes les images de ml/data et des dossiers locaux.
 Lancer : python ml/embed.py   -> ml/data/emb.npz"""
-import re, sys, numpy as np, onnxruntime as ort
+import os, re, sys, numpy as np, onnxruntime as ort
 from pathlib import Path
 from PIL import Image
 
 HERE = Path(__file__).parent; DATA = HERE / "data"
-LOCAL = [Path("C:/Users/sifly/Documents/gta6_gallery"), Path("C:/Users/sifly/Documents/gtadiscord")]
+# Dossiers d'images GTA VI en plus (captures officielles), séparés par ";" : ASV_LOCAL_IMAGES="D:/gta6_gallery;D:/autres"
+LOCAL = [Path(p) for p in os.environ.get("ASV_LOCAL_IMAGES", "").split(";") if p]
 sess = ort.InferenceSession(str(HERE.parent / "model" / "vision.onnx"), providers=["CPUExecutionProvider"])
 INP = sess.get_inputs()[0].name
 
