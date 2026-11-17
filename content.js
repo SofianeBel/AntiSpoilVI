@@ -6,7 +6,9 @@
   var SITES = [
     { re: /(^|\.)youtube\.com$/, sel: "ytd-rich-item-renderer,ytd-video-renderer,ytd-compact-video-renderer,ytd-grid-video-renderer,ytd-reel-item-renderer,ytd-playlist-renderer,ytd-channel-renderer,ytd-comment-thread-renderer,ytd-post-renderer,ytd-notification-renderer,yt-lockup-view-model,ytm-shorts-lockup-view-model,ytd-universal-watch-card-renderer,ytd-search-refinement-card-renderer,yt-page-header-view-model,yt-page-header-renderer,ytd-c4-tabbed-header-renderer", page: /^\/(watch|shorts\/)/,
       // Lecteur de prévisualisation posé par-dessus la miniature, hors de la carte : il fait partie de l'aperçu.
-      overlay: "ytd-app #video-preview" },
+      overlay: "ytd-app #video-preview",
+      // Grilles : la carte et son contenu sont masqués tous les deux, l'aperçu vise la carte entière.
+      nest: true },
     // skip : zones lues nulle part. Le nom, le @ et "a reposté" d'un compte "GTA 6 News" masquaient tout ce qu'il retweete.
     { re: /(^|\.)(x|twitter)\.com$/, sel: "article,[data-testid=trend],[data-testid=UserCell],[data-testid=typeaheadResult]", page: /\/status\//,
       skip: "article [data-testid=User-Name],article [data-testid=socialContext],article [data-testid=Tweet-User-Avatar]",
@@ -23,6 +25,7 @@
   var SEL = site ? site.sel : "article";
   var SKIP = site && site.skip || null;
   var OVERLAY = site && site.overlay || null;
+  var NEST = !!(site && site.nest);
 
   var settings = null, rx = null, active = false;
   var seen = new WeakMap();      // élément -> texte déjà analysé
@@ -32,7 +35,7 @@
   var maskedEls = new WeakSet(); // blocs masqués (WeakSet : une carte retirée du fil est libérée)
   var maskedId = new WeakMap();  // bloc masqué -> identité au moment du masque
   var lost = new Set();          // blocs masqués dont un site a retiré l'attribut
-  var peekTimer = null, peekEl = null, hoverNode = null;
+  var peekTimer = null, peekEl = null, hoverNode = null, hoverX = 0, hoverY = 0;
   var PEEK_DELAY = 350;
   var toSize = [];               // blocs fraîchement masqués dont on mesure la hauteur en une passe          // un passage de souris en scrollant ne doit pas spoiler
 
@@ -72,8 +75,10 @@
 
   // Attribut et pas classe : React (X, Reddit) réécrit className au survol et effaçait le masque.
   function mask(el, id) {
+    var fresh = !maskedEls.has(el) || maskedId.get(el) !== id;
     if (!maskedEls.has(el)) { maskedEls.add(el); masked++; if (settings.mode === "mask") toSize.push(el); }
-    else if (maskedId.get(el) !== id && el === peekEl) endPeek(); // carte recyclée pendant un aperçu
+    // Carte recyclée pendant un aperçu, ou nouveau spoil à l'intérieur d'une carte en aperçu (grille YouTube).
+    if (fresh && peekEl && (el === peekEl || peekEl.contains(el))) endPeek();
     maskedId.set(el, id);
     if (!el.hasAttribute("tabindex")) { el.setAttribute("tabindex", "0"); el.setAttribute("data-asv-tab", ""); }
     if (el.getAttribute("data-asv") !== settings.mode) el.setAttribute("data-asv", settings.mode);
@@ -207,10 +212,10 @@
     if (peekEl) { peekEl.removeAttribute("data-asv-peek"); peekEl = null; }
     syncCover();
   }
-  // Le bloc masqué le plus externe : sur les grilles YouTube, la carte et son contenu sont masqués tous les deux.
+  // Sur YouTube (NEST), le bloc masqué le plus externe ; ailleurs le plus proche (un commentaire Reddit, pas tout le fil).
   function maskedFrom(node) {
     var m = node && node.closest ? node.closest("[data-asv=mask]") : null, up;
-    while (m && m.parentElement && (up = m.parentElement.closest("[data-asv=mask]"))) m = up;
+    while (NEST && m && m.parentElement && (up = m.parentElement.closest("[data-asv=mask]"))) m = up;
     return m;
   }
   function inOverlay(node) { return !!(OVERLAY && node && node.closest && node.closest(OVERLAY)); }
@@ -223,19 +228,21 @@
   // Tant que la carte sous la souris est masquée sans aperçu, la prévisualisation est cachée : sinon YouTube lit la vidéo par-dessus le masque.
   function syncCover() {
     if (!OVERLAY) return;
+    if (hoverNode && !hoverNode.isConnected) hoverNode = under({ clientX: hoverX, clientY: hoverY }); // miniature remplacée sous la souris
     var m = active && maskedFrom(hoverNode), on = !!m && !m.hasAttribute("data-asv-peek");
     var d = document.documentElement;
     if (on !== d.hasAttribute("data-asv-cover")) { if (on) d.setAttribute("data-asv-cover", ""); else d.removeAttribute("data-asv-cover"); }
   }
   document.addEventListener("pointerover", function (e) {
     if (e.pointerType === "touch") return;
+    hoverX = e.clientX; hoverY = e.clientY;
     hoverNode = inOverlay(e.target) ? under(e) : e.target;
     var el = maskedFrom(hoverNode);
     if (el === peekEl) { syncCover(); return; }
     endPeek();
     if (!el) return;
     peekEl = el;
-    peekTimer = setTimeout(function () { if (peekEl === el) { el.setAttribute("data-asv-peek", ""); syncCover(); } }, PEEK_DELAY);
+    peekTimer = setTimeout(function () { if (peekEl === el) { el.setAttribute("data-asv-peek", NEST ? "all" : ""); syncCover(); } }, PEEK_DELAY);
   }, true);
   document.addEventListener("pointerout", function (e) {
     var to = e.relatedTarget;

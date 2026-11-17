@@ -121,7 +121,7 @@ await yt.waitForTimeout(500); await yt.mouse.move(tb.x + 70, tb.y + 70); await y
 await yt.mouse.click(tb.x + 80, tb.y + 80); await yt.waitForTimeout(150);
 y = await ys(); ok("youtube : clic sur la prévisualisation pendant l'aperçu, affiché pour de bon sans quitter la page", !y.asv && yt.url().includes("/results"), JSON.stringify(y) + " " + yt.url());
 // Carte affichée puis recyclée en un autre spoil, lecteur toujours sous la souris : le lecteur est recaché avant le rendu.
-const rec = await yt.evaluate(() => new Promise((res) => { const c = document.getElementById("v0"); c.querySelectorAll("a").forEach((a) => a.href = "/watch?v=gta2"); c.querySelector("#video-title").textContent = "GTA 6 : la carte de Leonida";
+const rec = await yt.evaluate(() => new Promise((res) => { const c = document.getElementById("v0"); const th = c.querySelector(".thumb"); th.replaceWith(th.cloneNode(true)); c.querySelectorAll("a").forEach((a) => a.href = "/watch?v=gta2"); c.querySelector("#video-title").textContent = "GTA 6 : la carte de Leonida";
   requestAnimationFrame(() => requestAnimationFrame(() => res({ asv: c.getAttribute("data-asv"), vis: getComputedStyle(document.getElementById("video-preview")).visibility }))); }));
 ok("youtube : carte recyclée en spoil sous le lecteur, lecteur caché", rec.asv === "mask" && rec.vis === "hidden", JSON.stringify(rec));
 // Grille : carte masquée dans une carte masquée, l'aperçu doit tenir et tout montrer.
@@ -132,6 +132,13 @@ const gh = await yt.evaluate(() => new Promise((res) => { let n = 0, off = 0; co
     if (!g.hasAttribute("data-asv-peek") || getComputedStyle(t).visibility !== "visible") off++; if (performance.now() < end) requestAnimationFrame(f); else res({ n, off }); })(); }));
 ok("youtube grille : l'aperçu tient et montre la carte imbriquée", gh.off === 0, JSON.stringify(gh));
 await yt.screenshot({ path: path.join(shots, "yt-grid-peek.png") });
+await yt.mouse.move(5, 300); await yt.waitForTimeout(60);
+// Pendant l'aperçu de la grille, la carte imbriquée devient un autre spoil : l'aperçu se ferme avant le rendu.
+await yt.mouse.move(gb.x + 60, gb.y + 60); await yt.waitForTimeout(450); await yt.mouse.move(gb.x + 70, gb.y + 70); await yt.waitForTimeout(50);
+const inner = await yt.evaluate(() => new Promise((res) => { const v = document.getElementById("v2"); const was = document.getElementById("g2").hasAttribute("data-asv-peek");
+  v.querySelectorAll("a").forEach((a) => a.href = "/watch?v=grid2"); v.querySelector("#video-title").textContent = "GTA 6 : fin du jeu";
+  requestAnimationFrame(() => requestAnimationFrame(() => res({ was, peek: document.getElementById("g2").hasAttribute("data-asv-peek"), vis: getComputedStyle(v.querySelector("#video-title")).visibility }))); }));
+ok("youtube grille : carte imbriquée recyclée pendant l'aperçu, remasquée", inner.was && !inner.peek && inner.vis === "hidden", JSON.stringify(inner));
 await yt.mouse.move(5, 300); await yt.waitForTimeout(60);
 ok("youtube grille : remasquée à la sortie", await yt.evaluate(() => getComputedStyle(document.querySelector("#v2 #video-title")).visibility === "hidden"));
 console.log(results.join("\n")); console.log("shots: " + shots);
