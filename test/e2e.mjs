@@ -90,5 +90,31 @@ await st.goto("https://x.com/news/status/8"); await st.waitForTimeout(600);
 ok("x.com/status : nom avec guillemets « GTA 6 », tweet sans rapport : pas de blocage", !(await st.evaluate(() => !!document.getElementById("asv-wall"))));
 await st.goto("https://x.com/marie/status/7"); await st.waitForTimeout(600);
 ok("x.com/status : tweet qui parle de GTA 6 : blocage", await st.evaluate(() => !!document.getElementById("asv-wall")));
+// YouTube : le lecteur de prévisualisation se pose par-dessus la miniature, hors de la carte.
+const yt = await ctx.newPage(); await yt.route("https://www.youtube.com/**", (r) => r.fulfill({ contentType: "text/html; charset=utf-8", body: fs.readFileSync(path.join(root, "test", "fake-yt.html")) }));
+await yt.goto("https://www.youtube.com/results?search_query=gta"); await yt.waitForTimeout(600);
+const ys = () => yt.evaluate(() => { const c = document.getElementById("v0"), p = document.getElementById("video-preview");
+  return { asv: c.getAttribute("data-asv"), peek: c.hasAttribute("data-asv-peek"), prv: getComputedStyle(p).display !== "none" && getComputedStyle(p).visibility === "visible" }; });
+ok("youtube : vidéo GTA masquée", (await ys()).asv === "mask");
+ok("youtube : vidéo sans rapport pas masquée", !(await yt.evaluate(() => document.getElementById("v1").getAttribute("data-asv"))));
+const tb = await yt.locator("#v0 .thumb").boundingBox();
+await yt.mouse.move(tb.x + 60, tb.y + 60); await yt.waitForTimeout(150);
+let y = await ys(); ok("youtube : survol bref, ni aperçu ni prévisualisation", !y.peek && !y.prv, JSON.stringify(y));
+await yt.mouse.move(tb.x + 70, tb.y + 70); await yt.waitForTimeout(500); await yt.mouse.move(tb.x + 80, tb.y + 80);
+// Échantillonne 1,5 s : l'aperçu doit tenir pendant que la souris est sur le lecteur de prévisualisation.
+const held = await yt.evaluate(() => new Promise((res) => { let n = 0, off = 0; const end = performance.now() + 1500;
+  (function f() { n++; if (!document.getElementById("v0").hasAttribute("data-asv-peek")) off++; if (performance.now() < end) requestAnimationFrame(f); else res({ n, off }); })(); }));
+y = await ys(); ok("youtube : survol prolongé, l'aperçu tient sur le lecteur de prévisualisation", held.off === 0 && y.peek && y.prv, JSON.stringify(held) + JSON.stringify(y));
+await yt.screenshot({ path: path.join(shots, "yt-peek.png") });
+// Sortie vers la carte voisine : remasqué, et la prévisualisation ne doit jamais rester visible sur une carte masquée.
+const v1 = await yt.locator("#v1").boundingBox(); await yt.mouse.move(v1.x + 500, v1.y + v1.height / 2); await yt.waitForTimeout(60);
+y = await ys(); ok("youtube : souris sortie, remasqué", y.asv === "mask" && !y.peek, JSON.stringify(y));
+// Prévisualisation qui traîne au-dessus d'une carte masquée (YouTube la garde parfois) : cachée.
+await yt.evaluate(() => { const p = document.getElementById("video-preview"); p.style.display = "block"; });
+await yt.mouse.move(tb.x + 60, tb.y + 60); await yt.waitForTimeout(100);
+y = await ys(); ok("youtube : prévisualisation cachée sur une carte masquée sans aperçu", !y.prv && !y.peek, JSON.stringify(y));
+await yt.waitForTimeout(500); await yt.mouse.move(tb.x + 70, tb.y + 70); await yt.waitForTimeout(100);
+await yt.mouse.click(tb.x + 80, tb.y + 80); await yt.waitForTimeout(150);
+y = await ys(); ok("youtube : clic sur la prévisualisation pendant l'aperçu, affiché pour de bon sans quitter la page", !y.asv && yt.url().includes("/results"), JSON.stringify(y) + " " + yt.url());
 console.log(results.join("\n")); console.log("shots: " + shots);
 await ctx.close(); srv.close(); process.exit(results.some((r) => r.startsWith("FAIL")) ? 1 : 0);

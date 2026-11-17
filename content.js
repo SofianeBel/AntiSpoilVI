@@ -4,7 +4,9 @@
 
   // Conteneurs à masquer par site. Ailleurs : les <article>.
   var SITES = [
-    { re: /(^|\.)youtube\.com$/, sel: "ytd-rich-item-renderer,ytd-video-renderer,ytd-compact-video-renderer,ytd-grid-video-renderer,ytd-reel-item-renderer,ytd-playlist-renderer,ytd-channel-renderer,ytd-comment-thread-renderer,ytd-post-renderer,ytd-notification-renderer,yt-lockup-view-model,ytm-shorts-lockup-view-model,ytd-universal-watch-card-renderer,ytd-search-refinement-card-renderer,yt-page-header-view-model,yt-page-header-renderer,ytd-c4-tabbed-header-renderer", page: /^\/(watch|shorts\/)/ },
+    { re: /(^|\.)youtube\.com$/, sel: "ytd-rich-item-renderer,ytd-video-renderer,ytd-compact-video-renderer,ytd-grid-video-renderer,ytd-reel-item-renderer,ytd-playlist-renderer,ytd-channel-renderer,ytd-comment-thread-renderer,ytd-post-renderer,ytd-notification-renderer,yt-lockup-view-model,ytm-shorts-lockup-view-model,ytd-universal-watch-card-renderer,ytd-search-refinement-card-renderer,yt-page-header-view-model,yt-page-header-renderer,ytd-c4-tabbed-header-renderer", page: /^\/(watch|shorts\/)/,
+      // Lecteur de prévisualisation posé par-dessus la miniature, hors de la carte : il fait partie de l'aperçu.
+      overlay: "ytd-app #video-preview" },
     // skip : zones lues nulle part. Le nom, le @ et "a reposté" d'un compte "GTA 6 News" masquaient tout ce qu'il retweete.
     { re: /(^|\.)(x|twitter)\.com$/, sel: "article,[data-testid=trend],[data-testid=UserCell],[data-testid=typeaheadResult]", page: /\/status\//,
       skip: "article [data-testid=User-Name],article [data-testid=socialContext],article [data-testid=Tweet-User-Avatar]",
@@ -20,6 +22,7 @@
   var site = SITES.filter(function (s) { return s.re.test(host); })[0];
   var SEL = site ? site.sel : "article";
   var SKIP = site && site.skip || null;
+  var OVERLAY = site && site.overlay || null;
 
   var settings = null, rx = null, active = false;
   var seen = new WeakMap();      // élément -> texte déjà analysé
@@ -200,33 +203,48 @@
   function endPeek() {
     clearTimeout(peekTimer); peekTimer = null;
     if (peekEl) { peekEl.removeAttribute("data-asv-peek"); peekEl = null; }
+    cover(true);
   }
   function maskedFrom(node) { return node && node.closest ? node.closest("[data-asv=mask]") : null; }
+  function inOverlay(node) { return !!(OVERLAY && node && node.closest && node.closest(OVERLAY)); }
+  // Tant que la carte survolée est masquée sans aperçu, la prévisualisation est cachée : sinon YouTube lit la vidéo par-dessus le masque.
+  function cover(on) {
+    if (!OVERLAY) return;
+    var d = document.documentElement;
+    if (on !== d.hasAttribute("data-asv-cover")) { if (on) d.setAttribute("data-asv-cover", ""); else d.removeAttribute("data-asv-cover"); }
+  }
   document.addEventListener("pointerover", function (e) {
     if (e.pointerType === "touch") return;
+    if (inOverlay(e.target)) return; // la prévisualisation garde l'état de la carte d'où vient la souris
     var el = maskedFrom(e.target);
     if (el === peekEl) return;
     endPeek();
+    cover(!!el);
     if (!el) return;
     peekEl = el;
-    peekTimer = setTimeout(function () { if (peekEl === el) el.setAttribute("data-asv-peek", ""); }, PEEK_DELAY);
+    peekTimer = setTimeout(function () { if (peekEl === el) { el.setAttribute("data-asv-peek", ""); cover(false); } }, PEEK_DELAY);
   }, true);
   document.addEventListener("pointerout", function (e) {
-    if (peekEl && !(e.relatedTarget && peekEl.contains(e.relatedTarget))) endPeek();
+    var to = e.relatedTarget;
+    if (peekEl && !(to && (peekEl.contains(to) || inOverlay(to)))) endPeek();
   }, true);
   window.addEventListener("blur", endPeek);
-  window.addEventListener("scroll", function () { if (peekEl && !peekEl.matches(":hover")) endPeek(); }, { passive: true, capture: true });
+  window.addEventListener("scroll", function () {
+    if (peekEl && !peekEl.matches(":hover") && !(OVERLAY && document.querySelector(OVERLAY + ":hover"))) endPeek();
+  }, { passive: true, capture: true });
 
   // Un clic (ou Entrée/Espace au clavier) sur un bloc masqué l'affiche pour de bon, sans suivre le lien.
   function onReveal(e) {
     if (e.type === "keydown" && (e.key !== "Enter" && e.key !== " " || e.target.getAttribute("data-asv") !== "mask")) return;
-    var el = maskedFrom(e.target);
+    // Pendant un aperçu YouTube, le clic tombe sur la prévisualisation : il garde la carte au lieu d'ouvrir la vidéo.
+    var el = maskedFrom(e.target) || (e.type === "click" && inOverlay(e.target) && peekEl && peekEl.hasAttribute("data-asv-peek") ? peekEl : null);
     if (!el) return;
     e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
     // On affiche le bloc cliqué, les blocs masqués dedans et ceux qui l'englobent.
     var list = [el].concat([].slice.call(el.querySelectorAll("[data-asv=mask]")));
     for (var p = el.parentElement; p; p = p.parentElement) if (p.getAttribute("data-asv") === "mask") list.push(p);
     list.forEach(function (x) { revealed.set(x, identity(x)); unmask(x); });
+    cover(false);
   }
   document.addEventListener("click", onReveal, true);
   document.addEventListener("keydown", onReveal, true);
