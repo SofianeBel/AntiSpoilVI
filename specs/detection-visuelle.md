@@ -47,6 +47,12 @@ Validation croisée par source (une vidéo ou une série d'images n'est jamais �
 
 Done check 1 : précision atteinte sur les miniatures, rappel en dessous de l'objectif (62 % contre 85 %). Décision attendue : intégrer tel quel (complément du texte) ou améliorer le rappel d'abord.
 
+## Résultats phase 2b (2026-11-17, intégré tel quel au seuil 0,87)
+- E2E : miniature GTA VI sans mot-clé masquée en ~1 s après la navigation (chargement du modèle compris), 0 frame nette avant le verdict, carte recyclée sûre puis GTA jamais nette, scores JS = Python à 0,0003 près.
+- Une miniature jugée en ~165 ms (téléchargement compris), hors de l'onglet. Vrai YouTube : 0 tâche longue en scrollant.
+- Vrai YouTube, recherche « miami vlog » : 2 à 4 vlogs sur 20 masqués à tort selon les résultats. La miniature du trailer officiel de GTA V score 0,92 (logo).
+- Firefox : texte seulement (pas d'offscreen), manifest compatible 121+.
+
 ## Plan
 - **Phase 2a, données et modèle** (`ml/`, Python) : collecter les positifs (captures et artworks officiels Rockstar, frames des trailers 1 et 2 à 1 image/s, miniatures YouTube GTA VI), les négatifs (GTA V, RDR2, autres jeux, miniatures YouTube variées, photos), calculer les embeddings MobileCLIP, entraîner la tête, `ml/eval.py`. Sortie : `model/head.json` + le rapport de précision/rappel. **Point d'arrêt** si le done check 1 échoue.
 - **Phase 2b, intégration** : offscreen + ORT WASM + cache + flou + masque, sur YouTube et X d'abord, E2E (done check 2), vrai site (3), perf (4).
