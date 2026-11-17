@@ -248,6 +248,8 @@
     var to = e.relatedTarget;
     if (peekEl && !(to && (peekEl.contains(to) || inOverlay(to)))) endPeek();
   }, true);
+  // Position à jour même quand la souris bouge sur la prévisualisation sans changer d'élément.
+  if (OVERLAY) document.addEventListener("pointermove", function (e) { hoverX = e.clientX; hoverY = e.clientY; }, { passive: true, capture: true });
   window.addEventListener("blur", endPeek);
   window.addEventListener("scroll", function () {
     if (peekEl && !peekEl.matches(":hover") && !(OVERLAY && document.querySelector(OVERLAY + ":hover"))) endPeek();
