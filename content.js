@@ -40,7 +40,8 @@
   if (PREFIX) {
     guard = document.createElement("style");
     var media = [];
-    PREFIX.forEach(function (p) { media.push("img[src^='" + p + "']", "video[poster^='" + p + "']"); });
+    // src, srcset (image responsive sans src reconnu) et <picture> : toute source possible est floutée par défaut.
+    PREFIX.forEach(function (p) { media.push("img[src^='" + p + "']", "img[srcset*='" + p + "']", "picture:has(source[srcset*='" + p + "']) img", "video[poster^='" + p + "']"); });
     guard.textContent = ":is(" + SEL + ") :is(" + media.join(",") + "):not([data-asv-img=ok]){filter:blur(18px) saturate(.5)!important;clip-path:inset(0)!important}";
     (document.head || document.documentElement).appendChild(guard);
   }
